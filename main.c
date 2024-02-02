@@ -6,6 +6,7 @@
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
 volatile char* buffer;
 volatile int buffer_i = 0;
+volatile int nl_cnt = 0;
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -32,7 +33,7 @@ int main(void) {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;
 
     // TODO: Replace with dynamically resizable buffer
-    buffer = (char*)malloc(1800 * sizeof(char));
+    buffer = (char*)malloc(900 * sizeof(char));
 
     configHFXT();
 
@@ -81,8 +82,20 @@ int main(void) {
 void EUSCIA0_IRQHandler() {
     if (EUSCI_A0->IFG & EUSCI_A_IFG_RXIFG) {
         // Note that reading RX buffer clears the flag and removes value from buffer
-        // TODO: Drop HTTP response headers and only save body?
-        buffer[buffer_i] = EUSCI_A0->RXBUF;
-        buffer_i++;
+        char input = EUSCI_A0->RXBUF;
+        // Drops HTTP response headers and only saves body
+        if (nl_cnt < 2) {
+            switch (input) {
+            case '\n':
+                nl_cnt++;
+            case '\r':
+                break;
+            default:
+                nl_cnt = 0;
+            }
+        } else {
+            buffer[buffer_i] = input;
+            buffer_i++;
+        }
     }
 }
