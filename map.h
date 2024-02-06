@@ -19,6 +19,7 @@ typedef struct Map {
         Array* tree;
         void* leaf;
     } value;
+    Array* children;
 } Map;
 
 extern Map* newMap();
