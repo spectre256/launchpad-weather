@@ -1,7 +1,7 @@
 #include "array.h"
 #include <stdlib.h>
 
-Array newArray() {
+Array* newArray() {
     Array array = {
         .length = 0,
         .capacity = DEFAULT_CAPACITY,

@@ -16,7 +16,7 @@ typedef struct {
     void** buffer;
 } Array;
 
-extern Array newArray();
+extern Array* newArray();
 
 extern void destroyArray(Array* array);
 

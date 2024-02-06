@@ -17,6 +17,7 @@ typedef struct Map {
         Array* tree;
         void* leaf;
     } value;
+    Array* children;
 } Map;
 
 extern Map* newMap();
@@ -25,6 +26,8 @@ extern void destroyMap(Map* map);
 
 extern void mapInsert(Map* map, char* key, void* value);
 
-extern void* mapGet(Map* map, char* key);
+extern void* mapGet(const Map* map, const char* key);
+
+void* mapGetHelper(const Map* map, const char* key, int curPrefixLength);
 
 #endif /* MAP_H_ */

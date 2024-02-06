@@ -1,4 +1,5 @@
 #include "map.h"
+#include "array.h"
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -28,6 +29,7 @@ Map* newMap() {
     map->prefix = "";
     map->type = LEAF;
     map->value.leaf = NULL;
+    map->children = newArray();
 
     return map;
 }
@@ -87,14 +89,32 @@ void mapInsert(Map* map, char* key, void* value) {
 }
 
 void* mapGet(const Map* map, const char* key) {
-    char* keyCursor = key;
-    char* prefixCursor = map->prefix;
-    void* value = NULL;
-
-    // While prefix and
-    while (strdiff(map->prefix, key) == -1) {
-
-    }
-
-    return value;
+   return mapGetHelper(map, key, 1);
 }
+
+void* mapGetHelper(const Map* map, const char* key, int curPrefixLength){
+   int i = 0;
+   Array* children = map->children;
+   Array* prefix = newArray();
+   arrayAppend(&prefix, map->prefix);
+   void* value = NULL;
+   if(map->type == LEAF){
+           return map->value;
+       }
+
+   // For each child of the current node
+   for(i = 0; i < children.length; i++){
+        /*
+         * iterate through each child and stop when the prefix matches with the given key,
+         * i.e. key is romulus, starting with given map prefix of r, iterate thru children
+         * om and ub combining with existing prefix r. If strdiff returns index that is <
+         * current prefix length, break from current iteration so that other children may
+         * be tried. If strdiff returns value == current prefix lengthReturn value from map
+         *  once a LEAF is reached (if statement above). Will probably need helper function
+         */
+
+   }
+
+   return value;
+}
+
