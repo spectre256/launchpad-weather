@@ -129,32 +129,27 @@ void mapInsert(Map* map, char* key, size_t keyLen, void* value) {
 }
 
 void* mapGet(const Map* map, const char* key, size_t keyLen) {
-   return mapGetHelper(map, key, 1);
+    Array* children = map->children;
+    if(map->type == LEAF){
+            return map->value.leaf;
+        }
+
+    int i = strdiff(map->prefix, map->prefixLen, key, keyLen);
+
+    // For each child of the current node
+    Map* child;
+    arrayForeach(children, child, _i){
+        if(keyLen == 0){
+            if(child->prefixLen == 0){
+                return mapGet(child, key, keyLen);
+            }
+            return NULL;
+           }
+        if(child->prefix[0] == key[i]){
+            return mapGet(child, &key[i], (keyLen-i));
+        }
+    }
+
+
+    return NULL;
 }
-
-void* mapGetHelper(const Map* map, const char* key, int curPrefixLength){
-   int i = 0;
-   Array* children = map->children;
-   Array* prefix = newArray();
-   arrayAppend(&prefix, map->prefix);
-   void* value = NULL;
-   if(map->type == LEAF){
-           return map->value;
-       }
-
-   // For each child of the current node
-   for(i = 0; i < children.length; i++){
-        /*
-         * iterate through each child and stop when the prefix matches with the given key,
-         * i.e. key is romulus, starting with given map prefix of r, iterate thru children
-         * om and ub combining with existing prefix r. If strdiff returns index that is <
-         * current prefix length, break from current iteration so that other children may
-         * be tried. If strdiff returns value == current prefix lengthReturn value from map
-         *  once a LEAF is reached (if statement above). Will probably need helper function
-         */
-
-   }
-
-   return value;
-}
-

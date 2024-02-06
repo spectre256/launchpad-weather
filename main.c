@@ -98,6 +98,8 @@ int main(void) {
     int h = 5;
     mapInsert(map, "roman", 5, &h);
 
+    void* i = mapGet(map, "romane", 6);
+
     #endif
 
     while(1);
