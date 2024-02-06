@@ -1,5 +1,4 @@
 #include "map.h"
-#include <stdbool.h>
 #include <string.h>
 
 #define MIN(a, b) \
@@ -37,9 +36,28 @@ Map* newMap() {
     map->prefixLen = 0;
     map->type = LEAF;
     map->value.leaf = NULL;
-    map->children = newArray();
 
     return map;
+}
+
+void destroyMap(Map* map) {
+    switch (map->type) {
+    case LEAF:
+        free(map->value.leaf);
+        break;
+    case TREE: {
+        Map* child;
+        arrayForeach(map->value.tree, child, _i) {
+            destroyMap(child);
+        }
+    }
+    }
+
+    free(map);
+}
+
+bool mapIsEmpty(Map* map) {
+    return map->prefixLen == 0 && map->value.leaf == NULL;
 }
 
 // Inserts a new key-value pair into the map
@@ -71,6 +89,12 @@ void mapInsert(Map* map, char* key, size_t keyLen, void* value) {
             childOld->prefix = &map->prefix[i];
             childOld->prefixLen = map->prefixLen - i;
             childOld->value.leaf = map->value.leaf;
+
+            // If the map is empty, replace it with a new leaf node
+            if (mapIsEmpty(map)) {
+                *map = *childNew;
+                return;
+            }
 
             // Set the map to a tree with the two children
             map->prefixLen = i;
@@ -129,27 +153,25 @@ void mapInsert(Map* map, char* key, size_t keyLen, void* value) {
 }
 
 void* mapGet(const Map* map, const char* key, size_t keyLen) {
-    Array* children = map->children;
-    if(map->type == LEAF){
-            return map->value.leaf;
-        }
+    if (map->type == LEAF) {
+        return map->value.leaf;
+    }
 
     int i = strdiff(map->prefix, map->prefixLen, key, keyLen);
 
     // For each child of the current node
     Map* child;
-    arrayForeach(children, child, _i){
-        if(keyLen == 0){
-            if(child->prefixLen == 0){
-                return mapGet(child, key, keyLen);
+    arrayForeach(map->value.tree, child, _i) {
+        if (keyLen == 0) {
+            if (child->prefixLen != 0) {
+                break;
             }
-            return NULL;
-           }
-        if(child->prefix[0] == key[i]){
-            return mapGet(child, &key[i], (keyLen-i));
+        } else if (child->prefix[0] != key[i]) {
+            continue;
         }
-    }
 
+        return mapGet(child, &key[i], keyLen - i);
+    }
 
     return NULL;
 }

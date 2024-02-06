@@ -10,6 +10,11 @@
 
 #include "array.h"
 #include <stdlib.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Map {
     char* prefix;
@@ -19,17 +24,20 @@ typedef struct Map {
         Array* tree;
         void* leaf;
     } value;
-    Array* children;
 } Map;
 
 extern Map* newMap();
 
 extern void destroyMap(Map* map);
 
+extern bool mapIsEmpty(Map* map);
+
 extern void mapInsert(Map* map, char* key, size_t keyLen, void* value);
 
 extern void* mapGet(const Map* map, const char* key, size_t keyLen);
 
-extern void destroyMap(Map* map);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MAP_H_ */

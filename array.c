@@ -17,6 +17,7 @@ Array* newArray() {
 void destroyArray(Array* array) {
     free(array->buffer);
     array->buffer = NULL;
+    free(array);
 }
 
 void* arrayGet(Array* array, int i) {

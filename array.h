@@ -16,6 +16,10 @@
     int i; \
     for(i = 0, child = (__typeof__ (child))(array)->buffer[0]; i < (array)->length; child = (__typeof__ (child))(array)->buffer[++i])
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     int length;
     int capacity;
@@ -31,5 +35,9 @@ extern void arrayAppend(Array* array, void* value);
 extern void* arrayGet(Array* array, int i);
 
 extern void arrayDelete(Array* array, int i);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ARRAY_H_ */
