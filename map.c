@@ -1,22 +1,30 @@
 #include "map.h"
-#include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
-int strdiff(const char* fst, const char* snd) {
-    int i = 0;
-    while (fst* == snd*) {
-        if (fst* == '\0' && snd* == '\0') {
-            return -1; // Both strings are equal
-        } else if (fst* == '\0' || && snd* == '\0') {
-            break; // Return index that they differ on
+#define MIN(a, b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
+#define ABS(a) \
+   ({ __typeof__ (a) _a = (a); \
+     _a < 0 ? -_a : _a; })
+
+// Returns the index at which two strings differ, or -1 if they're equal
+int strdiff(const char* fst, size_t lenFst, const char* snd, size_t lenSnd) {
+    int i;
+    for (i = 0; i < MIN(lenFst, lenSnd); i++) {
+        if (fst[i] != snd[i]) {
+            return i;
         }
-
-        fst++;
-        snd++;
-        i++;
     }
 
-    return i;
+    if (lenFst != lenSnd) {
+        return MIN(lenFst, lenSnd);
+    }
+
+    return -1;
 }
 
 Map* newMap() {
@@ -26,75 +34,109 @@ Map* newMap() {
     }
 
     map->prefix = "";
+    map->prefixLen = 0;
     map->type = LEAF;
     map->value.leaf = NULL;
 
     return map;
 }
 
-void mapInsert(Map* map, char* key, void* value) {
+// Inserts a new key-value pair into the map
+void mapInsert(Map* map, char* key, size_t keyLen, void* value) {
     // Create a new map if it doesn't already exist
     if (!map) {
         map = newMap();
     }
 
-    char* keyCursor = key;
-    char* prefixCursor = map->prefix;
+    int i = strdiff(key, keyLen, map->prefix, map->prefixLen);
 
-    // Move cursor while it matches the key
-    // This assumes that the prefix and key will never be null (it shouldn't; even leaves will have a prefix)
-    while (*keyCursor == *prefixCursor) {
-        if (*keyCursor == '\0' && *prefixCursor == '\0') {
-            // If the end of the key is also reached, the current map's value should be replaced with the new one
-            map->prefix = key;
+    switch (map->type) {
+    case LEAF:
+        if (i == -1) {
+            // If the key and prefix are equal, override the new value
             map->value.leaf = value;
-            return;
-        } else if (*prefixCursor == '\0') {
-            // If map has children, traverse children and check prefixes for match
-            if (map->children) {
+        } else {
+            // Split the key and prefix at the given index
+            // NOTE: does not copy strings for efficiency, so they must be freed by the caller
 
-            } else {
-                child->prefix = keyCursor;
-                child->value.leaf = value;
+            // Child with new value
+            Map* childNew = newMap();
+            childNew->prefix = &key[i];
+            childNew->prefixLen = keyLen - i;
+            childNew->value.leaf = value;
 
-                // TODO: Add child map to map's set of children
-            }
-            // If the prefix is empty, replace the map's prefix and value with the new ones
-            if (prefix == "") {
-                map->value.leaf = value;
-                map->prefix = key;
-                return;
-            }
-            // If the end of the prefix is reached, create a new child with the remaining key as its prefix and the new value
-            Map* child = allocMap();
+            // Child with old value
+            Map* childOld = newMap();
+            childOld->prefix = &map->prefix[i];
+            childOld->prefixLen = map->prefixLen - i;
+            childOld->value.leaf = map->value.leaf;
 
-            return;
-        } else if (*keyCursor == '\0') {
-            // This case is handled the same as when the key and prefix stop matching, so the loop is exited
-            break;
+            // Set the map to a tree with the two children
+            map->prefixLen = i;
+            map->type = TREE;
+            map->value.tree = newArray();
+
+            arrayAppend(map->value.tree, childNew);
+            arrayAppend(map->value.tree, childOld);
         }
+        break;
+    case TREE:
+        if (i == map->prefixLen) {
+            // If the differing index is at the end of the prefix, check children for matching prefix against the remainder of the key
+            // This also handles the case of the key and prefix having the same length
+            // Since the children's prefixes are guaranteed to not share any characters, we can get away with only checking the first character for equality
+            if (keyLen != 0) {
+                Map* child;
+                arrayForeach(map->value.tree, child, _i) {
+                    if (key[i] == child->prefix[0]) {
+                        // Once the matching prefix is found, call insert on the child
+                        mapInsert(child, &key[i], keyLen - i, value);
+                        return;
+                    }
+                }
+            }
 
-        keyCursor++;
-        prefixCursor++;
+            // If a matching child was not found, insert a new child with the remainder of the key
+            Map* childNew = newMap();
+            childNew->prefix = &key[i];
+            childNew->prefixLen = keyLen - i;
+            childNew->value.leaf = value;
+
+            arrayAppend(map->value.tree, childNew);
+            return;
+        } else {
+            // Otherwise, split the prefix like before, retaining the current map's children
+            Map* childNew = newMap();
+            childNew->prefix = &key[i];
+            childNew->prefixLen = keyLen - i;
+            childNew->value.leaf = value;
+
+            // Child with old value, retaining children
+            Map* childOld = newMap();
+            childOld->prefix = &map->prefix[i];
+            childOld->prefixLen = map->prefixLen - i;
+            childOld->value.tree = map->value.tree;
+
+            // Set the map to a tree with the two children
+            map->prefixLen = i;
+            map->value.tree = newArray();
+
+            arrayAppend(map->value.tree, childNew);
+            arrayAppend(map->value.tree, childOld);
+        }
     }
-
-    // If the end of the key is reached OR the key no longer matches the prefix, the current map's prefix must be split, then two children will be added:
-    // One for the remaining prefix, (retaining the map's current value and children) and one for the remaining key (with the new value)
-
-    // TODO: Add new children
-
-    return;
 }
 
-void* mapGet(const Map* map, const char* key) {
-    char* keyCursor = key;
-    char* prefixCursor = map->prefix;
-    void* value = NULL;
-
-    // While prefix and
-    while (strdiff(map->prefix, key) == -1) {
-
-    }
-
-    return value;
+void* mapGet(const Map* map, const char* key, size_t keyLen) {
+//    char* keyCursor = key;
+//    char* prefixCursor = map->prefix;
+//    void* value = NULL;
+//
+//    // While prefix and
+//    while (strdiff(map->prefix, key) == -1) {
+//
+//    }
+//
+//    return value;
+    return 0;
 }

@@ -10,13 +10,19 @@
 
 #define DEFAULT_CAPACITY 5
 
+// Generates the for loop declaration part for an Array
+// Takes an array, a declared variable to hold the current child, and a name for the loop index
+#define arrayForeach(array, child, i) \
+    int i; \
+    for(i = 0, child = (__typeof__ (child))(array)->buffer[0]; i < (array)->length; child = (__typeof__ (child))(array)->buffer[++i])
+
 typedef struct {
     int length;
     int capacity;
     void** buffer;
 } Array;
 
-extern Array newArray();
+extern Array* newArray();
 
 extern void destroyArray(Array* array);
 

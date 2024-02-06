@@ -1,6 +1,9 @@
 #include "msp.h"
+#include "map.h"
 #include "csHFXT.h"
 #include <stdlib.h>
+
+#define TEST
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
@@ -74,6 +77,28 @@ int main(void) {
     NVIC->ISER[0] = (1 << EUSCIA0_IRQn );
 
     printMessage(httpRequest);
+
+    #ifdef TEST
+
+    Map* map = newMap();
+    int a = 1;
+    mapInsert(map, "romane", 6, &a);
+    int b = 2;
+    mapInsert(map, "romanus", 7, &b);
+    int c = 3;
+    mapInsert(map, "romulus", 7, &c);
+    int d = 4;
+    mapInsert(map, "rubens", 6, &d);
+    int e = 5;
+    mapInsert(map, "ruber", 5, &e);
+    int f = 5;
+    mapInsert(map, "rubicon", 7, &f);
+    int g = 5;
+    mapInsert(map, "rubicundus", 10, &g);
+    int h = 5;
+    mapInsert(map, "roman", 5, &h);
+
+    #endif
 
     while(1);
 }

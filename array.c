@@ -1,12 +1,15 @@
 #include "array.h"
 #include <stdlib.h>
 
-Array newArray() {
-    Array array = {
-        .length = 0,
-        .capacity = DEFAULT_CAPACITY,
-        .buffer = (void**)calloc(DEFAULT_CAPACITY, sizeof(void*)),
-    };
+Array* newArray() {
+    Array* array = (Array*)malloc(sizeof(Array));
+    if (array == NULL) {
+        return NULL;
+    }
+
+    array->length = 0;
+    array->capacity = DEFAULT_CAPACITY;
+    array->buffer = (void**)malloc(DEFAULT_CAPACITY * sizeof(void*));
 
     return array;
 }
