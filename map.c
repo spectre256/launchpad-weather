@@ -41,16 +41,11 @@ Map* newMap() {
 }
 
 void destroyMap(Map* map) {
-    switch (map->type) {
-    case LEAF:
-        free(map->value.leaf);
-        break;
-    case TREE: {
+    if (map->type == TREE) {
         Map* child;
         arrayForeach(map->value.tree, child, _i) {
             destroyMap(child);
         }
-    }
     }
 
     free(map);
