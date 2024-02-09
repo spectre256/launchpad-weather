@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <ctype.h>
 
 char* cursor;
 
@@ -89,8 +90,22 @@ JSONValue* parseObject(void) {
 
 // Connor
 JSONValue* parseArray(void) {
-    return NULL;
+    JSONValue* newJSONArray = malloc(sizeof(JSONValue));
+    Array* modifiableArray = newArray();
+    while(peek() != ']'){
+        if(peek() == ','){
+            next();
+        }
+        JSONValue* value = parseValue();
+        if (!value) return NULL;
+        arrayAppend(modifiableArray, value);
+    }
+    newJSONArray->value.array = modifiableArray;
+    newJSONArray->type = ARRAY;
+    next();
+    return newJSONArray;
 }
+
 
 // Ellis
 JSONValue* parseValue(void) {
@@ -127,7 +142,35 @@ JSONValue* parseValue(void) {
 
 // Connor
 JSONValue* parseString(void) {
-    return NULL;
+    JSONValue* newJSONString;
+    newJSONString = (JSONValue*)malloc(sizeof(JSONValue));
+    newJSONString->type = STRING;
+    newJSONString->value.string.str = cursor;
+    while(peek() != '"'){
+        if(peek() == '\\'){
+            newJSONString->value.string.length++;
+            next();
+            if(peek() == 'u'){
+                next();
+                int i;
+                for(i = 0; i < 4; i++){
+                    if(isdigit(peek()) == 0){
+                        return NULL;
+                    }
+                    newJSONString->value.string.length++;
+                    next();
+                }
+                if(peek() == '\\'){
+                    continue;
+                }
+            } else if (peek() != ('"' || '\\' || '/' || 'b' || 'f' || 'n' || 'r' || 't')){
+                return NULL;
+            }
+        }
+        newJSONString->value.string.length++;
+        next();
+    }
+    return newJSONString;
 }
 
 // Ellis
@@ -197,7 +240,34 @@ JSONValue* parseNumber(void) {
 
 // Connor
 JSONValue* parseBool(void) {
-    return NULL;
+    JSONValue* newJSONBool;
+    newJSONBool = malloc(sizeof(JSONValue));
+    newJSONBool->type = BOOLEAN;
+    int i;
+    const char t[] = "true";
+    const char f[] = "false";
+    if(peek() == 't'){
+        for(i = 0; i < sizeof(t)/sizeof(t[0]); i++){
+            if(peek() == t[i]){
+                next();
+            } else{
+                return NULL;
+            }
+        }
+        newJSONBool->value.boolean = true;
+    } else if(peek() == 'f'){
+        for(i = 0; i < sizeof(f)/sizeof(f[0]); i++){
+            if(peek() == f[i]){
+                next();
+            } else{
+                return NULL;
+            }
+        }
+        newJSONBool->value.boolean = false;
+    } else{
+        return NULL;
+    }
+    return newJSONBool;
 }
 
 // Ellis
@@ -213,4 +283,7 @@ JSONValue* parseNull(void) {
 
 // Connor
 void parseWhitespace(void) {
+    while(peek() == ' ' || peek() == '\n' || peek() == '\r' || peek() == '\t'){
+        next();
+    }
 }
