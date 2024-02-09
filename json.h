@@ -31,21 +31,25 @@ typedef struct JSONValue {
     } value;
 } JSONValue;
 
-JSONValue parseJSON(char* str);
+JSONValue* parseJSON(char* str);
 
-JSONValue parseObject(void);
+JSONValue* JSONGet(JSONValue* object, char* key);
 
-JSONValue parseArray(void);
+void destroyJSON(JSONValue* value);
 
-JSONValue parseValue(void);
+JSONValue* parseObject(void);
 
-JSONValue parseString(void);
+JSONValue* parseArray(void);
 
-JSONValue parseNumber(void);
+JSONValue* parseValue(void);
 
-JSONValue parseBool(void);
+JSONValue* parseString(void);
 
-JSONValue parseNull(void);
+JSONValue* parseNumber(void);
+
+JSONValue* parseBool(void);
+
+JSONValue* parseNull(void);
 
 void parseWhitespace(void);
 

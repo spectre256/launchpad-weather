@@ -9,12 +9,16 @@ Array* newArray() {
 
     array->length = 0;
     array->capacity = DEFAULT_CAPACITY;
-    array->buffer = (void**)malloc(DEFAULT_CAPACITY * sizeof(void*));
+    array->buffer = malloc(DEFAULT_CAPACITY * sizeof(void*));
 
     return array;
 }
 
 void destroyArray(Array* array) {
+    void* value;
+    arrayForeach(array, value, _i) {
+        free(value);
+    }
     free(array->buffer);
     free(array);
 }
@@ -26,7 +30,7 @@ void* arrayGet(Array* array, int i) {
 void arrayAppend(Array* array, void* value) {
     if (array->length + 1 > array->capacity) {
         array->capacity += DEFAULT_CAPACITY;
-        array->buffer = (void**)realloc(array->buffer, array->capacity * sizeof(void*));
+        array->buffer = realloc(array->buffer, array->capacity * sizeof(void*));
     }
 
     array->buffer[array->length++] = value;
@@ -40,6 +44,6 @@ void arrayDelete(Array* array, int i) {
 
     if (array->length < array->capacity - DEFAULT_CAPACITY) {
         array->capacity -= DEFAULT_CAPACITY;
-        array->buffer = (void**)realloc(array->buffer, array->capacity * sizeof(void*));
+        array->buffer = realloc(array->buffer, array->capacity * sizeof(void*));
     }
 }

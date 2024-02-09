@@ -1,16 +1,19 @@
 #include "msp.h"
+#include "json.h"
 #include "map.h"
 #include "array.h"
 #include "csHFXT.h"
 #include <stdlib.h>
 
 #define TEST
+#define BUFFER_SIZE 900
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
-volatile char* buffer;
+char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
+volatile bool responseReady = false;
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -29,6 +32,21 @@ void printMessage(const char* const message) {
     }
 }
 
+void sendRequest(void) {
+    if (!responseReady) {
+        printMessage(httpRequest);
+    }
+}
+
+void handleResponse(void) {
+    JSONValue* json = parseJSON(buffer);
+    if (json == NULL) return; // TODO: Properly handle error
+
+    // TODO: Update LCD with new values
+
+    responseReady = false;
+}
+
 /**
  * main.c
  */
@@ -37,7 +55,7 @@ int main(void) {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;
 
     // TODO: Replace with dynamically resizable buffer
-    buffer = (char*)malloc(900 * sizeof(char));
+    buffer = malloc(BUFFER_SIZE * sizeof(char));
 
     configHFXT();
 
@@ -77,8 +95,6 @@ int main(void) {
     // Enable eUSCIA0 interrupt in NVIC module
     NVIC->ISER[0] = (1 << EUSCIA0_IRQn );
 
-    printMessage(httpRequest);
-
     // Optional tests
     #ifdef TEST
 
@@ -88,7 +104,7 @@ int main(void) {
 
     // Allocate just enough members to cause the buffer to resize
     while (len <= DEFAULT_CAPACITY) {
-        int* val = (int*)malloc(sizeof(int));
+        int* val = malloc(sizeof(int));
         *val = len;
         arrayAppend(array, val);
         len++;
@@ -104,51 +120,85 @@ int main(void) {
 
     // Map tests
     Map* map = newMap();
-    int a = 1;
-    mapInsert(map, "romane", 6, &a);
+    int* a = malloc(sizeof(int));
+    *a = 1;
+    mapInsert(map, "romane", 6, a);
     int* a_new = (int*)mapGet(map, "romane", 6);
 
-    int b = 2;
-    mapInsert(map, "romanus", 7, &b);
+    int* b = malloc(sizeof(int));
+    *b = 2;
+    mapInsert(map, "romanus", 7, b);
     int* b_new = (int*)mapGet(map, "romanus", 7);
 
-    int c = 3;
-    mapInsert(map, "romulus", 7, &c);
+    int* c = malloc(sizeof(int));
+    *c = 3;
+    mapInsert(map, "romulus", 7, c);
     int* c_new = (int*)mapGet(map, "romulus", 7);
 
-    int d = 4;
-    mapInsert(map, "rubens", 6, &d);
+    int* d = malloc(sizeof(int));
+    *d = 4;
+    mapInsert(map, "rubens", 6, d);
     int* d_new = (int*)mapGet(map, "rubens", 6);
 
-    int e = 5;
-    mapInsert(map, "ruber", 5, &e);
+    int* e = malloc(sizeof(int));
+    *e = 5;
+    mapInsert(map, "ruber", 5, e);
     int* e_new = (int*)mapGet(map, "ruber", 5);
 
-    int f = 5;
-    mapInsert(map, "rubicon", 7, &f);
+    int* f = malloc(sizeof(int));
+    *f = 6;
+    mapInsert(map, "rubicon", 7, f);
     int* f_new = (int*)mapGet(map, "rubicon", 7);
 
-    int g = 5;
-    mapInsert(map, "rubicundus", 10, &g);
+    int* g = malloc(sizeof(int));
+    *g = 7;
+    mapInsert(map, "rubicundus", 10, g);
     int* g_new = (int*)mapGet(map, "rubicundus", 10);
 
-    int h = 5;
-    mapInsert(map, "roman", 5, &h);
+    int* h = malloc(sizeof(int));
+    *h = 8;
+    mapInsert(map, "roman", 5, h);
     int* h_new = (int*)mapGet(map, "roman", 5);
 
     destroyMap(map);
 
+    // Test JSON parser
+    char* rawjson = "{}";
+    JSONValue* value = parseJSON(rawjson);
+    destroyJSON(value);
+
+    rawjson = "{  \"location\" : \"Terre Haute\"}";
+    value = parseJSON(rawjson);
+    JSONValue* location = JSONGet(value, "location");
+    destroyJSON(value);
+
     #endif
 
-    while(1);
+    sendRequest();
+
+    while(true) {
+        if (responseReady) {
+            handleResponse();
+        }
+
+        // Handle button press
+    }
 }
 
 // UART interrupt service routine
-void EUSCIA0_IRQHandler() {
+void EUSCIA0_IRQHandler(void) {
     if (EUSCI_A0->IFG & EUSCI_A_IFG_RXIFG) {
         // Note that reading RX buffer clears the flag and removes value from buffer
         char input = EUSCI_A0->RXBUF;
-        // Drops HTTP response headers and only saves body
+
+        // Set flag if input is a NUL character
+        if (input == '\0') {
+            buffer[buffer_i] = '\0';
+            responseReady = true;
+            return;
+        }
+
+        // Drop HTTP response headers and only save body
         if (nl_cnt < 2) {
             switch (input) {
             case '\n':
@@ -164,3 +214,5 @@ void EUSCIA0_IRQHandler() {
         }
     }
 }
+
+// TODO: Timer interrupt to send request again

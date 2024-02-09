@@ -27,7 +27,7 @@ int strdiff(const char* fst, size_t lenFst, const char* snd, size_t lenSnd) {
 }
 
 Map* newMap() {
-    Map* map = (Map*)malloc(sizeof(Map));
+    Map* map = malloc(sizeof(Map));
     if (!map) {
         return NULL;
     }
@@ -41,11 +41,16 @@ Map* newMap() {
 }
 
 void destroyMap(Map* map) {
-    if (map->type == TREE) {
+    switch (map->type) {
+    case LEAF:
+        free(map->value.leaf);
+        break;
+    case TREE: {
         Map* child;
         arrayForeach(map->value.tree, child, _i) {
             destroyMap(child);
         }
+    }
     }
 
     free(map);
