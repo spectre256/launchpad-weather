@@ -35,15 +35,15 @@ JSONValue parseJSON(char* str);
 
 JSONValue parseObject(void);
 
-JSONValue parseArray(void);
+JSONValue* parseArray(void);
 
 JSONValue parseValue(void);
 
-JSONValue parseString(void);
+JSONValue* parseString(void);
 
 JSONValue parseNumber(void);
 
-JSONValue parseBool(void);
+JSONValue* parseBool(void);
 
 JSONValue parseNull(void);
 
