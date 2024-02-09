@@ -163,7 +163,7 @@ JSONValue* parseString(void) {
                 if(peek() == '\\'){
                     continue;
                 }
-            } else if (peek() != ('"' || '\\' || '/' || 'b' || 'f' || 'n' || 'r' || 't')){
+            } else if (peek() != '"' || peek() != '\\' || peek != '/' || peek() != 'b' || peek()!= 'f' || peek() != 'n' || peek() != 'r' || peek() != 't'){
                 return NULL;
             }
         }
