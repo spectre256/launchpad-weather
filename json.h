@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 typedef struct JSONString {
-    char* str;
+    const char* str;
     size_t length;
 } JSONString;
 
@@ -25,11 +25,13 @@ typedef struct JSONValue {
     union {
         Map* object;
         Array* array;
-        JSONString string;
+        JSONString str;
         bool boolean;
         double number;
     } value;
 } JSONValue;
+
+const char* cursor;
 
 JSONValue* parseJSON(char* str);
 

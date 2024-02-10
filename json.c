@@ -5,18 +5,16 @@
 #include <math.h>
 #include <ctype.h>
 
-char* cursor;
-
 char next() {
-    return *(++cursor);
+    return *(cursor++);
 }
 
 char peek() {
-    return *(cursor + 1);
+    return *cursor;
 }
 
 // Helper function to parse NUL-terminated string
-bool parseLiteral(char* str) {
+bool parseLiteral(const char* str) {
     while (*str != '\0') {
         if (*(str++) != next()) {
             return false;
@@ -53,14 +51,17 @@ void destroyJSON(JSONValue* value) {
 
 // Ellis
 JSONValue* parseObject(void) {
-    JSONValue* object = malloc(sizeof(JSONValue));
-    object->type = OBJECT;
-    object->value.object = newMap();
+    Map* map = newMap();
 
+    // Parse opening bracket and whitespace
     if (next() != '{') return NULL;
     parseWhitespace();
 
-    if (peek() != '}') {
+    if (peek() == '}') {
+        // If there's a closing bracket, consume it
+        next();
+    } else {
+        // Otherwise, parse key value pairs
         while (true) {
             // Parse string then whitespace
             JSONValue* string = parseString();
@@ -75,34 +76,53 @@ JSONValue* parseObject(void) {
             if (value == NULL) return NULL;
 
             // Add key-value pair to map
-            JSONString key = string->value.string;
-            mapInsert(object->value.object, key.str, key.length, (void*)value);
+            JSONString key = string->value.str;
+            mapInsert(map, key.str, key.length, (void*)value);
 
             // Parse comma or break, then whitespace
             if (peek() != ',') break;
             next();
             parseWhitespace();
         }
+
+        if (next() != '}') return NULL;
     }
 
-    return next() == '}' ? object : NULL;
+    JSONValue* object = malloc(sizeof(JSONValue));
+    object->type = OBJECT;
+    object->value.object = map;
+    return object;
 }
 
 // Connor
 JSONValue* parseArray(void) {
-    JSONValue* newJSONArray = malloc(sizeof(JSONValue));
     Array* modifiableArray = newArray();
-    while(peek() != ']'){
-        if(peek() == ','){
+
+    // Parse opening bracket and whitespace
+    if (next() != '[') return NULL;
+    parseWhitespace();
+
+    if (peek() == ']') {
+        // If there's a closing bracket, consume it
+        next();
+    } else {
+        // Otherwise, parse values
+        while (true) {
+            JSONValue* value = parseValue();
+            if (!value) return NULL;
+            arrayAppend(modifiableArray, value);
+
+            // Parse comma or break, then whitespace
+            if (peek() != ',') break;
             next();
         }
-        JSONValue* value = parseValue();
-        if (!value) return NULL;
-        arrayAppend(modifiableArray, value);
+
+        if (next() != ']') return NULL;
     }
+
+    JSONValue* newJSONArray = malloc(sizeof(JSONValue));
     newJSONArray->value.array = modifiableArray;
     newJSONArray->type = ARRAY;
-    next();
     return newJSONArray;
 }
 
@@ -131,7 +151,7 @@ JSONValue* parseValue(void) {
         value = parseNull();
         break;
     default:
-        if ((c >= '0' && c <= '9') || c == '-') {
+        if (isdigit(c) || c == '-') {
             value = parseNumber();
         }
     }
@@ -142,40 +162,56 @@ JSONValue* parseValue(void) {
 
 // Connor
 JSONValue* parseString(void) {
-    JSONValue* newJSONString;
-    newJSONString = (JSONValue*)malloc(sizeof(JSONValue));
+    // Parse initial quote
+    if (next() != '"') return NULL;
+
+    JSONValue* newJSONString = malloc(sizeof(JSONValue));
     newJSONString->type = STRING;
-    newJSONString->value.string.str = cursor;
-    while(peek() != '"'){
-        if(peek() == '\\'){
-            newJSONString->value.string.length++;
-            next();
-            if(peek() == 'u'){
-                next();
+    newJSONString->value.str.str = cursor;
+
+    int len = 0;
+    char c;
+    while ((c = next()) != '"') {
+        // Disallow control characters
+        if (iscntrl(c)) return NULL;
+
+        if (c == '\\') {
+            len++;
+            c = next();
+            switch (c) {
+            case 'u': {
+                // Parse 4 hex digits
                 int i;
-                for(i = 0; i < 4; i++){
-                    if(isdigit(peek()) == 0){
-                        return NULL;
-                    }
-                    newJSONString->value.string.length++;
-                    next();
+                for (i = 0; i < 4; i++) {
+                    if (!isxdigit(next())) return NULL;
+                    len++;
                 }
-                if(peek() == '\\'){
-                    continue;
-                }
-            } else if (peek() != '"' || peek() != '\\' || peek != '/' || peek() != 'b' || peek()!= 'f' || peek() != 'n' || peek() != 'r' || peek() != 't'){
+                break;
+            }
+            case '"':
+            case '\\':
+            case '/':
+            case 'b':
+            case 'f':
+            case 'n':
+            case 'r':
+            case 't':
+                break;
+            default:
                 return NULL;
             }
         }
-        newJSONString->value.string.length++;
-        next();
+
+        len++;
     }
+
+    newJSONString->value.str.length = len;
     return newJSONString;
 }
 
 // Ellis
 JSONValue* parseNumber(void) {
-    int multiplier = 1;
+    double multiplier = 1;
 
     // Optional negative sign
     if (peek() == '-') {
@@ -188,17 +224,19 @@ JSONValue* parseNumber(void) {
     char c = peek();
     if (c == '0') {
         // Skip parsing if the integer part is a zero
-        next();
+        // In this case, the fractional part is not optional
+        if (next() != '.') return NULL;
     } else {
         // Parse first non-zero digit
         if (c >= '1' && c <= '9') {
             integerPart = c - '0';
+            next();
         } else {
             return NULL;
         }
 
-        // Parse many digits
-        for (c = peek(); c >= '0' && c <= '9'; next()) {
+        // Parse 0 or more digits
+        for (; isdigit(c = peek()); next()) {
             integerPart = integerPart * 10 + c - '0';
         }
     }
@@ -208,10 +246,12 @@ JSONValue* parseNumber(void) {
     if (peek() == '.') {
         next();
 
-        // Parse many digits
+        // Parse at least 1 digit
+        if (!isdigit(peek())) return NULL;
+
         int divisor = 10;
-        for (c = peek(); c >= '0' && c <= '9'; next()) {
-            fractionalPart += c / divisor;
+        for (; isdigit(c = peek()); next()) {
+            fractionalPart += (double)(c - '0') / divisor;
             divisor *= 10;
         }
     }
@@ -224,9 +264,11 @@ JSONValue* parseNumber(void) {
         char sign = next();
         if (sign != '+' && sign != '-') return NULL;
 
-        // Parse many digits
+        // Parse at least 1 digit
+        if (!isdigit(peek())) return NULL;
+
         int exponent = 0;
-        for (c = peek(); c >= '0' && c <= '9'; next()) {
+        for (; isdigit(c = peek()); next()) {
             exponent = exponent * 10 + c - '0';
         }
         multiplier *= pow(10, (sign == '+' ? 1 : -1) * exponent);
@@ -240,26 +282,25 @@ JSONValue* parseNumber(void) {
 
 // Connor
 JSONValue* parseBool(void) {
-    JSONValue* newJSONBool;
-    newJSONBool = malloc(sizeof(JSONValue));
+    JSONValue* newJSONBool = malloc(sizeof(JSONValue));
     newJSONBool->type = BOOLEAN;
     int i;
     const char t[] = "true";
     const char f[] = "false";
-    if(peek() == 't'){
-        for(i = 0; i < sizeof(t)/sizeof(t[0]); i++){
+    if (peek() == 't') {
+        for (i = 0; i < sizeof(t)/sizeof(char) - 1; i++) {
             if(peek() == t[i]){
                 next();
-            } else{
+            } else {
                 return NULL;
             }
         }
         newJSONBool->value.boolean = true;
-    } else if(peek() == 'f'){
-        for(i = 0; i < sizeof(f)/sizeof(f[0]); i++){
-            if(peek() == f[i]){
+    } else if (peek() == 'f') {
+        for (i = 0; i < sizeof(f)/sizeof(char) - 1; i++) {
+            if (peek() == f[i]) {
                 next();
-            } else{
+            } else {
                 return NULL;
             }
         }
@@ -283,7 +324,7 @@ JSONValue* parseNull(void) {
 
 // Connor
 void parseWhitespace(void) {
-    while(peek() == ' ' || peek() == '\n' || peek() == '\r' || peek() == '\t'){
+    while (peek() == ' ' || peek() == '\n' || peek() == '\r' || peek() == '\t') {
         next();
     }
 }

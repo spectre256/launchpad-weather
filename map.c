@@ -61,7 +61,7 @@ bool mapIsEmpty(Map* map) {
 }
 
 // Inserts a new key-value pair into the map
-void mapInsert(Map* map, char* key, size_t keyLen, void* value) {
+void mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
     // Create a new map if it doesn't already exist
     if (!map) {
         map = newMap();

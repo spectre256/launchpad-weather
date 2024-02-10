@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 typedef struct Map {
-    char* prefix;
+    const char* prefix;
     size_t prefixLen;
     enum {LEAF, TREE} type;
     union {
@@ -32,7 +32,7 @@ extern void destroyMap(Map* map);
 
 extern bool mapIsEmpty(Map* map);
 
-extern void mapInsert(Map* map, char* key, size_t keyLen, void* value);
+extern void mapInsert(Map* map, const char* key, size_t keyLen, void* value);
 
 extern void* mapGet(const Map* map, const char* key, size_t keyLen);
 
