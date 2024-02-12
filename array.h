@@ -8,7 +8,8 @@
 #ifndef ARRAY_H_
 #define ARRAY_H_
 
-#define DEFAULT_CAPACITY 5
+#define DEFAULT_CAPACITY 1
+#define RESIZE_CAPACITY 1
 
 // Generates the for loop declaration part for an Array
 // Takes an array, a declared variable to hold the current child, and a name for the loop index
@@ -35,6 +36,8 @@ extern void arrayAppend(Array* array, void* value);
 extern void* arrayGet(Array* array, int i);
 
 extern void arrayDelete(Array* array, int i);
+
+extern void testArray(void);
 
 #ifdef __cplusplus
 }

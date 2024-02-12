@@ -1,6 +1,12 @@
 #include "map.h"
 #include <string.h>
 
+size_t allocated_map = 0;
+
+#define MALLOC(size) \
+    ({ allocated_map += size; \
+        malloc(size); })
+
 #define MIN(a, b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -27,7 +33,7 @@ int strdiff(const char* fst, size_t lenFst, const char* snd, size_t lenSnd) {
 }
 
 Map* newMap() {
-    Map* map = malloc(sizeof(Map));
+    Map* map = MALLOC(sizeof(Map));
     if (!map) {
         return NULL;
     }
@@ -174,4 +180,49 @@ void* mapGet(const Map* map, const char* key, size_t keyLen) {
     }
 
     return NULL;
+}
+
+void testMap(void) {
+    Map* map = newMap();
+    int* a = MALLOC(sizeof(int));
+    *a = 1;
+    mapInsert(map, "romane", 6, a);
+    int* a_new = (int*)mapGet(map, "romane", 6);
+
+    int* b = MALLOC(sizeof(int));
+    *b = 2;
+    mapInsert(map, "romanus", 7, b);
+    int* b_new = (int*)mapGet(map, "romanus", 7);
+
+    int* c = MALLOC(sizeof(int));
+    *c = 3;
+    mapInsert(map, "romulus", 7, c);
+    int* c_new = (int*)mapGet(map, "romulus", 7);
+
+    int* d = MALLOC(sizeof(int));
+    *d = 4;
+    mapInsert(map, "rubens", 6, d);
+    int* d_new = (int*)mapGet(map, "rubens", 6);
+
+    int* e = MALLOC(sizeof(int));
+    *e = 5;
+    mapInsert(map, "ruber", 5, e);
+    int* e_new = (int*)mapGet(map, "ruber", 5);
+
+    int* f = MALLOC(sizeof(int));
+    *f = 6;
+    mapInsert(map, "rubicon", 7, f);
+    int* f_new = (int*)mapGet(map, "rubicon", 7);
+
+    int* g = MALLOC(sizeof(int));
+    *g = 7;
+    mapInsert(map, "rubicundus", 10, g);
+    int* g_new = (int*)mapGet(map, "rubicundus", 10);
+
+    int* h = MALLOC(sizeof(int));
+    *h = 8;
+    mapInsert(map, "roman", 5, h);
+    int* h_new = (int*)mapGet(map, "roman", 5);
+
+    destroyMap(map);
 }

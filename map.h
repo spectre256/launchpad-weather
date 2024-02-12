@@ -36,6 +36,8 @@ extern void mapInsert(Map* map, const char* key, size_t keyLen, void* value);
 
 extern void* mapGet(const Map* map, const char* key, size_t keyLen);
 
+extern void testMap(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -8,8 +8,8 @@
 #ifndef JSON_H_
 #define JSON_H_
 
-#include "array.h"
 #include "map.h"
+#include "array.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,11 +27,9 @@ typedef struct JSONValue {
         Array* array;
         JSONString str;
         bool boolean;
-        double number;
+        float number;
     } value;
 } JSONValue;
-
-const char* cursor;
 
 JSONValue* parseJSON(char* str);
 
@@ -54,6 +52,8 @@ JSONValue* parseBool(void);
 JSONValue* parseNull(void);
 
 void parseWhitespace(void);
+
+void testParser(void);
 
 #ifdef __cplusplus
 }

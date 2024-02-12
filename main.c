@@ -1,12 +1,12 @@
 #include "msp.h"
+#include "csHFXT.h"
 #include "json.h"
 #include "map.h"
 #include "array.h"
-#include "csHFXT.h"
 #include <stdlib.h>
 
-#define TEST
-#define BUFFER_SIZE 900
+// #define TEST
+#define BUFFER_SIZE 750
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
@@ -55,7 +55,7 @@ int main(void) {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;
 
     // TODO: Replace with dynamically resizable buffer
-    // buffer = malloc(BUFFER_SIZE * sizeof(char));
+//    buffer = malloc(BUFFER_SIZE * sizeof(char));
 
     configHFXT();
 
@@ -99,177 +99,13 @@ int main(void) {
     #ifdef TEST
 
     // Array tests
-    Array* array = newArray();
-    int len = array->length;
-
-    // Allocate just enough members to cause the buffer to resize
-    while (len <= DEFAULT_CAPACITY) {
-        int* val = malloc(sizeof(int));
-        *val = len;
-        arrayAppend(array, val);
-        len++;
-    } // Check capacity/length here to ensure buffer gets resized
-
-    int* first = (int*)arrayGet(array, 0);
-    int* last = (int*)arrayGet(array, len - 1);
-
-    arrayDelete(array, len - 2);
-    arrayDelete(array, len - 1); // Check capacity/length here to ensure buffer gets resized
-
-    destroyArray(array);
+//    testArray();
 
     // Map tests
-    Map* map = newMap();
-    int* a = malloc(sizeof(int));
-    *a = 1;
-    mapInsert(map, "romane", 6, a);
-    int* a_new = (int*)mapGet(map, "romane", 6);
-
-    int* b = malloc(sizeof(int));
-    *b = 2;
-    mapInsert(map, "romanus", 7, b);
-    int* b_new = (int*)mapGet(map, "romanus", 7);
-
-    int* c = malloc(sizeof(int));
-    *c = 3;
-    mapInsert(map, "romulus", 7, c);
-    int* c_new = (int*)mapGet(map, "romulus", 7);
-
-    int* d = malloc(sizeof(int));
-    *d = 4;
-    mapInsert(map, "rubens", 6, d);
-    int* d_new = (int*)mapGet(map, "rubens", 6);
-
-    int* e = malloc(sizeof(int));
-    *e = 5;
-    mapInsert(map, "ruber", 5, e);
-    int* e_new = (int*)mapGet(map, "ruber", 5);
-
-    int* f = malloc(sizeof(int));
-    *f = 6;
-    mapInsert(map, "rubicon", 7, f);
-    int* f_new = (int*)mapGet(map, "rubicon", 7);
-
-    int* g = malloc(sizeof(int));
-    *g = 7;
-    mapInsert(map, "rubicundus", 10, g);
-    int* g_new = (int*)mapGet(map, "rubicundus", 10);
-
-    int* h = malloc(sizeof(int));
-    *h = 8;
-    mapInsert(map, "roman", 5, h);
-    int* h_new = (int*)mapGet(map, "roman", 5);
-
-    destroyMap(map);
+//    testMap();
 
     // Test JSON parser
-
-    // Parse null
-    cursor = "null";
-    JSONValue* value = parseNull();
-    destroyJSON(value);
-
-    cursor = "nul";
-    value = parseNull();
-
-    // Parse bools
-    cursor = "true";
-    value = parseBool();
-    destroyJSON(value);
-    cursor = "false";
-    value = parseBool();
-    destroyJSON(value);
-
-    cursor = "truth";
-    value = parseBool();
-    cursor = "fake";
-    value = parseBool();
-
-    // Parse numbers
-    cursor = "1";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "1.0";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "-123";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "-123.0045";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "1e-2";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "-1.2E+2";
-    value = parseNumber();
-    destroyJSON(value);
-    cursor = "15E+0";
-    value = parseNumber();
-    destroyJSON(value);
-
-    cursor = "1.";
-    value = parseNumber();
-    cursor = "01";
-    value = parseNumber();
-
-    // Parse strings
-    cursor = "\"normal string\"";
-    value = parseString();
-    destroyJSON(value);
-    cursor = "\"str with \\b \\n \\r \\f \\\\ \\/ \\\" \\t escaped chars\"";
-    value = parseString();
-    destroyJSON(value);
-    cursor = "\"str with unicode: \\ua0f2 \\u0D3C \\u1234 \"";
-    value = parseString();
-    destroyJSON(value);
-    cursor = "\"\"";
-    value = parseString();
-    destroyJSON(value);
-
-    cursor = "\"bad escape \\uaf2\"";
-    value = parseString();
-    cursor = "\"\0\"";
-    value = parseString();
-    cursor = "\"\x20\"";
-    value = parseString();
-    cursor = "\"\x7F\"";
-    value = parseString();
-    cursor = "\"wrong quote'";
-    value = parseString();
-
-    // Parse arrays
-    cursor = "[]";
-    value = parseArray();
-    destroyJSON(value);
-    cursor = "[   ]";
-    value = parseArray();
-    destroyJSON(value);
-    cursor = "[  -1.0 ]";
-    value = parseArray();
-    destroyJSON(value);
-    cursor = "[1, \"string\",  true, null]";
-    value = parseArray();
-    destroyJSON(value);
-    cursor = "[ 1, \"string\", [ \"nested array\"]  ]";
-    value = parseArray();
-    destroyJSON(value);
-
-    cursor = "[\"extra comma\",]";
-    value = parseArray();
-    cursor = "[  \"missing bracket\" ";
-    value = parseArray();
-
-    // Parse objects
-    char* rawjson = "{}";
-    value = parseJSON(rawjson);
-    destroyJSON(value);
-
-    rawjson = "{  \"location\" : \"Terre Haute\"}";
-    value = parseJSON(rawjson);
-    JSONValue* location = JSONGet(value, "location");
-    JSONValue* invalid = JSONGet(value, "locatio"); // FIX: Since we're only checking the first character, this invalid key will return...
-    destroyJSON(value);
+    testParser();
 
     #endif
 
