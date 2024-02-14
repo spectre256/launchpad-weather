@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 // #define TEST
-#define BUFFER_SIZE 750
+#define BUFFER_SIZE 280
 #define CLK_FREQUENCY       48000000    // MCLK using 48MHz HFXT
 
 /* Global Variables */
@@ -17,7 +17,7 @@ const char tempText[] = "Temp(F): ";
 const char humidText[] = "Humidity: ";
 const char condText[] = "Condition: ";
 
-char* buffer;
+volatile char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
 volatile bool responseReady = false;
@@ -191,8 +191,9 @@ int main(void) {
     int delay;
 
     // TODO: Replace with dynamically resizable buffer
-//    buffer = malloc(BUFFER_SIZE * sizeof(char));
+    buffer = malloc(BUFFER_SIZE * sizeof(char));
 
+    // Config stuff
     configHFXT();
 
     initSW();

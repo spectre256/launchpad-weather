@@ -87,7 +87,6 @@ extern const char temp[];
 extern const char humid[];
 extern const char cond[];
 extern const char text[];
-
 /*!
  *
  *  \brief This function configures the selected pins for an LCD
@@ -150,8 +149,6 @@ extern void setGRange();
  * This function cycles the data to be displayed on the LCD.
  */
 extern void cycleLCD();
-
-
 
 //*****************************************************************************
 //

@@ -25,7 +25,7 @@ typedef struct JSONValue {
     union {
         Map* object;
         Array* array;
-        JSONString str;
+        JSONString* str;
         bool boolean;
         float number;
     } value;
