@@ -1,5 +1,6 @@
 #include "msp.h"
 #include "csHFXT.h"
+#include "csLFXT.h"
 #include "json.h"
 #include "map.h"
 #include "array.h"
@@ -9,7 +10,8 @@
 
 // #define TEST
 #define BUFFER_SIZE 280
-#define CLK_FREQUENCY       48000000    // MCLK using 48MHz HFXT
+#define CLK_FREQUENCY 48000000 // MCLK using 48MHz HFXT
+#define TIMER_TICKS 1250 // 5 s = X ticks / (32kHz / 128)
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
@@ -21,7 +23,7 @@ volatile char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
 volatile bool responseReady = false;
-char numBuffer[4];
+char numBuffer[7]; // XXX.XX
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -31,7 +33,7 @@ char numBuffer[4];
  */
 void printMessage(const char* const message) {
     int i;
-    for (i = 0; message[i - 1] != '\0'; i++) {
+    for (i = 0; i == 0 || message[i - 1] != '\0'; i++) {
         // Check if the TX buffer is empty first
         while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));
 
@@ -52,30 +54,30 @@ void handleResponse(void) {
     if (json == NULL) return; // TODO: Properly handle error
 
     JSONValue* current = JSONGet(json, "current");
-    //TODO: Modify to only get the two currently displayed values on LCD
+    // TODO: Modify to only get the two currently displayed values on LCD
     JSONValue* temp_f = JSONGet(current, "temp_f");
     JSONValue* condition = JSONGet(current, "condition");
     JSONValue* conditionText = JSONGet(condition, "text");
     JSONValue* humidity = JSONGet(current, "humidity");
 
     setCursorFirstLine();   // Set LCD cursor to start of first line
-    //Display temp
+    // Display temp
     for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
         printChar(tempText[i]); // Print "Temp(F): "
     }
-    //Convert value in temp_f to char array
-    snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
+    // Convert value in temp_f to char array
+    snprintf(numBuffer, sizeof numBuffer, "%6.3f", temp_f->value.number);
     for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
         printChar(numBuffer[i]);    // print value of temp_f
     }
 
     setCursorSecondLine();  // Set LCD cursor to start of second line
-    //Display humidity
+    // Display humidity
     for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
         printChar(humidText[i]);    // Print "Humidity: "
     }
     // Ditto above
-    snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
+    snprintf(numBuffer, sizeof numBuffer, "%6.3f", humidity->value.number);
     for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
         printChar(numBuffer[i]);    // Print value of humidity
     }
@@ -113,11 +115,9 @@ int main(void) {
 
     // Config stuff
     configHFXT();
-
+    configLFXT();
     initSW();
-
     configLCD(CLK_FREQUENCY);
-
     initLCD();
 
     // Configure UART pins
@@ -160,33 +160,44 @@ int main(void) {
     #ifdef TEST
 
     // Array tests
-//    testArray();
+    testArray();
 
     // Map tests
-//    testMap();
+    testMap();
 
     // Test JSON parser
     testParser();
 
     #endif
 
-    sendRequest();
+    // sendRequest();
 
-    while(true) {
+    // Configure timer to send another request every 5 seconds
+    TIMER_A0->CCR[0] = TIMER_TICKS;
+    TIMER_A0->CTL = TIMER_A_CTL_MC__UP
+                | TIMER_A_CTL_SSEL__ACLK
+                | TIMER_A_CTL_IE
+                | TIMER_A_CTL_CLR;
+
+    NVIC->ISER[0] |=  1 << TA0_N_IRQn;
+
+    __enable_irq(); // Enable global interrupt
+
+    while (true) {
         if (responseReady) {
             handleResponse();
         }
 
         // Handle button press
-        if(((P1->IN & 0x0010) >> 4) == 0){
-            //create function in lcd.c to cycle info on LCD screen
-            //cycleLCD();
-            //lazy debounce for now
-            for(delay = 0; delay < 5000; delay++);
-                // wait for S2 released
-            while(((P1->IN & 0x0010) >> 4) == 0);
-                // delay 5 ms
-            for(delay = 0; delay < 5000; delay++);
+        if (((P1->IN & 0x0010) >> 4) == 0) {
+            // create function in lcd.c to cycle info on LCD screen
+            // cycleLCD();
+            // lazy debounce for now
+            for (delay = 0; delay < 5000; delay++);
+            // wait for S2 released
+            while (((P1->IN & 0x0010) >> 4) == 0);
+            // debounce
+            for (delay = 0; delay < 5000; delay++);
         }
     }
 }
@@ -197,9 +208,13 @@ void EUSCIA0_IRQHandler(void) {
         // Note that reading RX buffer clears the flag and removes value from buffer
         char input = EUSCI_A0->RXBUF;
 
+        // If the buffer is full, don't do anything
+        if (buffer_i >= BUFFER_SIZE) return;
+
         // Set flag if input is a NUL character
         if (input == '\0') {
             buffer[buffer_i] = '\0';
+            buffer_i = 0;
             responseReady = true;
             return;
         }
@@ -221,6 +236,14 @@ void EUSCIA0_IRQHandler(void) {
     }
 }
 
-// TODO: Timer interrupt to send request again
+// Timer interrupt to send request every 5 s
+void TA0_N_IRQHandler(void) {
+    // Not necessary to check which flag is set because only one IRQ mapped to this interrupt vector
+    sendRequest();
+
+    // Clear timer compare flag in TA3CCTL0
+    TIMER_A0->CTL &= ~TIMER_A_CTL_IFG;
+
+}
 
 // TODO: Button interrupt to send request again and reset timer

@@ -29,8 +29,7 @@ int delayMicroSec(uint32_t micros) {
     //  return error state
     if (ticks < 2) {
         return UNDERFLOW;
-    }
-    if (ticks > SYSTICK_LIMIT) {
+    } else if (ticks > SYSTICK_LIMIT) {
         return OVERFLOW;
     }
 
@@ -41,7 +40,7 @@ int delayMicroSec(uint32_t micros) {
     // Enable SysTick timer
     SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
     // Wait for SysTick COUNT flag
-    while(!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk));
+    while (!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk));
     // Disable SysTick timer
     SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
     return SUCCESS;
