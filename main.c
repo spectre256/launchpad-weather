@@ -95,7 +95,6 @@ void handleResponse(void) {
         for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
             printChar(numBuffer[i]);    // print value of temp_f
         }
-        printChar(0b11011111);
     }
     case 1:{
         JSONValue* humidity = JSONGet(current, "humidity");
