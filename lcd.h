@@ -30,8 +30,8 @@ extern "C"
 #include <msp.h>
 
 #define LCD_DB_PORT         P4
-#define LCD_RS_PORT         P2
-#define LCD_EN_PORT         P2
+#define LCD_RS_PORT         P5
+#define LCD_EN_PORT         P5
 #define LCD_RS_MASK         BIT7
 #define LCD_EN_MASK         BIT6
 
@@ -39,6 +39,7 @@ extern "C"
 #define DATA_MODE           1
 #define LINE1_OFFSET        0x0
 #define LINE2_OFFSET        0x40
+#define LINE1_SPACE_14      0xD
 
 /* Instruction masks */
 #define CLEAR_DISPLAY_MASK  0x01
@@ -80,6 +81,12 @@ extern "C"
 #define B_FLAG_MASK         0x01
 #define S_FLAG_MASK         0x01
 
+extern int data1;
+extern int data2;
+extern const char temp[];
+extern const char humid[];
+extern const char cond[];
+extern const char text[];
 /*!
  *
  *  \brief This function configures the selected pins for an LCD
@@ -117,6 +124,31 @@ extern void initLCD(void);
  *  \return None
  */
 extern void printChar(char character);
+
+/*
+ *  This function clears the entire display of the LCD
+ */
+extern void clearDisplay();
+
+/*
+ *  This function sets the position of the cursor to the start of the first line
+ */
+extern void setCursorFirstLine();
+
+/*
+ *  This function sets the position of the cursor to the start of the second line
+ */
+extern void setCursorSecondLine();
+
+/*
+ *  This function sets the position of the cursor to the position after the end of 'Accelerometer' on the LCD
+ */
+extern void setGRange();
+
+/*
+ * This function cycles the data to be displayed on the LCD.
+ */
+extern void cycleLCD();
 
 //*****************************************************************************
 //

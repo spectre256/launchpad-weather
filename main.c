@@ -3,17 +3,25 @@
 #include "json.h"
 #include "map.h"
 #include "array.h"
+#include "lcd.h"
 #include <stdlib.h>
+#include <stdio.h>
 
-#define TEST
+// #define TEST
 #define BUFFER_SIZE 280
+#define CLK_FREQUENCY       48000000    // MCLK using 48MHz HFXT
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
-char* buffer;
+const char tempText[] = "Temp(F): ";
+const char humidText[] = "Humidity: ";
+const char condText[] = "Condition: ";
+
+volatile char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
 volatile bool responseReady = false;
+char numBuffer[4];
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -39,14 +47,56 @@ void sendRequest(void) {
 }
 
 void handleResponse(void) {
+    int i;
     JSONValue* json = parseJSON(buffer);
     if (json == NULL) return; // TODO: Properly handle error
 
-    // TODO: Update LCD with new values
+    JSONValue* current = JSONGet(json, "current");
+    //TODO: Modify to only get the two currently displayed values on LCD
+    JSONValue* temp_f = JSONGet(current, "temp_f");
+    JSONValue* condition = JSONGet(current, "condition");
+    JSONValue* conditionText = JSONGet(condition, "text");
+    JSONValue* humidity = JSONGet(current, "humidity");
+
+    setCursorFirstLine();   // Set LCD cursor to start of first line
+    //Display temp
+    for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
+        printChar(tempText[i]); // Print "Temp(F): "
+    }
+    //Convert value in temp_f to char array
+    snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
+    for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
+        printChar(numBuffer[i]);    // print value of temp_f
+    }
+
+    setCursorSecondLine();  // Set LCD cursor to start of second line
+    //Display humidity
+    for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
+        printChar(humidText[i]);    // Print "Humidity: "
+    }
+    // Ditto above
+    snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
+    for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
+        printChar(numBuffer[i]);    // Print value of humidity
+    }
 
     destroyJSON(json);
 
     responseReady = false;
+}
+
+void initSW(void){
+    // set pin modes to GPIO
+    // clear bit 4 of SEL0 and SEL1
+    P1->SEL0 &= ~BIT4;
+    P1->SEL1 &= ~BIT4;
+
+    // set pin directions to input
+    P1->DIR & ~BIT4;
+
+    // set internal resistors for pull-up and enable them
+    P1->OUT |= BIT4;
+    P1->REN |= BIT4;
 }
 
 /**
@@ -56,10 +106,19 @@ int main(void) {
     // Stop Watchdog timer
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;
 
-    // TODO: Replace with dynamically resizable buffer
-//    buffer = malloc(BUFFER_SIZE * sizeof(char));
+    int delay;
 
+    // TODO: Replace with dynamically resizable buffer
+    buffer = malloc(BUFFER_SIZE * sizeof(char));
+
+    // Config stuff
     configHFXT();
+
+    initSW();
+
+    configLCD(CLK_FREQUENCY);
+
+    initLCD();
 
     // Configure UART pins
     P1->SEL0 |= BIT2 | BIT3;
@@ -119,6 +178,16 @@ int main(void) {
         }
 
         // Handle button press
+        if(((P1->IN & 0x0010) >> 4) == 0){
+            //create function in lcd.c to cycle info on LCD screen
+            //cycleLCD();
+            //lazy debounce for now
+            for(delay = 0; delay < 5000; delay++);
+                // wait for S2 released
+            while(((P1->IN & 0x0010) >> 4) == 0);
+                // delay 5 ms
+            for(delay = 0; delay < 5000; delay++);
+        }
     }
 }
 
