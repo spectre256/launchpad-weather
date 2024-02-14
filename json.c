@@ -4,7 +4,8 @@
 #include <math.h>
 #include <ctype.h>
 
-// const char* const exampleResponse = "{\"location\":{\"name\":\"Terre Haute\",\"region\":\"Indiana\",\"country\":\"USA\",\"lat\":39.47,\"lon\":-87.35,\"tz_id\":\"America/Indiana/Indianapolis\",\"localtime_epoch\":1707420270,\"localtime\":\"2024-02-08 14:24\"},\"current\":{\"last_updated_epoch\":1707419700,\"last_updated\":\"2024-02-08 14:15\",\"temp_c\":14.0,\"temp_f\":57.2,\"is_day\":1,\"condition\":{\"text\":\"Overcast\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/day/122.png\",\"code\":1009},\"wind_mph\":23.0,\"wind_kph\":37.1,\"wind_degree\":180,\"wind_dir\":\"S\",\"pressure_mb\":1012.0,\"pressure_in\":29.87,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":70,\"cloud\":100,\"feelslike_c\":11.6,\"feelslike_f\":52.9,\"vis_km\":16.0,\"vis_miles\":9.0,\"uv\":4.0,\"gust_mph\":26.4,\"gust_kph\":42.4}}";
+// const char* const exampleResponse = "{\"location\":{\"name\":\"Terre Haute\",\"region\":\"Indiana\",\"country\":\"USA\",\"lat\":39.47,\"lon\":-87.35,\"tz_id\":\"America/Indiana/Indianapolis\",\"localtime_epoch\":1707771348,\"localtime\":\"2024-02-12 15:55\"},\"current\":{\"temp_f\":44.4,\"condition\":{\"text\":\"Partly cloudy\"},\"humidity\":58}}";
+const char* const exampleResponse = "{\"location\":{\"name\":\"Terre Haute\",\"region\":\"Indiana\",\"country\":\"USA\",\"lat\":39.47,\"lon\":-87.35,\"tz_id\":\"America/Indiana/Indianapolis\",\"localtime_epoch\":1707420270,\"localtime\":\"2024-02-08 14:24\"},\"current\":{\"last_updated_epoch\":1707419700,\"last_updated\":\"2024-02-08 14:15\",\"temp_c\":14.0,\"temp_f\":57.2,\"is_day\":1,\"condition\":{\"text\":\"Overcast\",\"icon\":\"//cdn.weatherapi.com/weather/64x64/day/122.png\",\"code\":1009},\"wind_mph\":23.0,\"wind_kph\":37.1,\"wind_degree\":180,\"wind_dir\":\"S\",\"pressure_mb\":1012.0,\"pressure_in\":29.87,\"precip_mm\":0.0,\"precip_in\":0.0,\"humidity\":70,\"cloud\":100,\"feelslike_c\":11.6,\"feelslike_f\":52.9,\"vis_km\":16.0,\"vis_miles\":9.0,\"uv\":4.0,\"gust_mph\":26.4,\"gust_kph\":42.4}}";
 
 const char* cursor;
 
@@ -53,6 +54,9 @@ void destroyJSON(JSONValue* value) {
         break;
     case ARRAY:
         destroyArray(value->value.array);
+        break;
+    case STRING:
+        free(value->value.str);
     }
 
     free(value);
@@ -85,8 +89,10 @@ JSONValue* parseObject(void) {
             if (value == NULL) return NULL;
 
             // Add key-value pair to map
-            JSONString key = str->value.str;
-            mapInsert(map, key.str, key.length, (void*)value);
+            JSONString* key = str->value.str;
+            mapInsert(map, key->str, key->length, (void*)value);
+            destroyJSON(str);
+            allocated_json -= sizeof(JSONString);
 
             // Parse comma or break, then whitespace
             if (peek() != ',') break;
@@ -176,7 +182,8 @@ JSONValue* parseString(void) {
 
     JSONValue* newJSONString = MALLOC(sizeof(JSONValue));
     newJSONString->type = STRING;
-    newJSONString->value.str.str = cursor;
+    newJSONString->value.str = MALLOC(sizeof(JSONString));
+    newJSONString->value.str->str = cursor;
 
     int len = 0;
     char c;
@@ -214,7 +221,7 @@ JSONValue* parseString(void) {
         len++;
     }
 
-    newJSONString->value.str.length = len;
+    newJSONString->value.str->length = len;
     return newJSONString;
 }
 
@@ -451,7 +458,7 @@ void testParser(void) {
 //    JSONValue* invalid = JSONGet(value, "locatio"); // TODO: Since we're only checking the first character, this invalid key will return...
 //    destroyJSON(value);
 
-    // value = parseJSON(exampleResponse);
+     value = parseJSON(exampleResponse);
     JSONValue* location = JSONGet(value, "location");
     JSONValue* locationName = JSONGet(location, "name");
     JSONValue* current = JSONGet(value, "current");

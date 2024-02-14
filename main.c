@@ -5,8 +5,8 @@
 #include "array.h"
 #include <stdlib.h>
 
-// #define TEST
-#define BUFFER_SIZE 750
+#define TEST
+#define BUFFER_SIZE 280
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
@@ -43,6 +43,8 @@ void handleResponse(void) {
     if (json == NULL) return; // TODO: Properly handle error
 
     // TODO: Update LCD with new values
+
+    destroyJSON(json);
 
     responseReady = false;
 }
