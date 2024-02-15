@@ -48,123 +48,58 @@ void sendRequest(void) {
     }
 }
 
-void handleResponse(void) {
+void switchData(int data, JSONValue* current){
     int i;
+    switch(data){
+    case 0:{
+        JSONValue* temp_f = JSONGet(current, "temp_f");
+        //Display temp
+        for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
+            printChar(tempText[i]); // Print "Temp(F): "
+        }
+        //Convert value in temp_f to char array
+        snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
+        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
+            printChar(numBuffer[i]);    // print value of temp_f
+        }
+    }
+    case 1:{
+        JSONValue* humidity = JSONGet(current, "humidity");
+        //Display humidity
+        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
+            printChar(humidText[i]);    // Print "Humidity: "
+        }
+        // Ditto above
+        snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
+        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
+            printChar(numBuffer[i]);    // Print value of humidity
+        }
+    }
+    case 2:{
+        JSONValue* condition = JSONGet(current, "condition");
+        JSONValue* conditionText = JSONGet(condition, "text");
+        for(i = 0; i < sizeof(condText)/sizeof(char) - 1; i++){
+            printChar(condText[i]);    // Print "Humidity: "
+        }
+        for(i = 0; i < conditionText->value.str->length; i++){
+            printChar(*(conditionText->value.str->str + i));
+        }
+    }
+    }
+
+}
+
+void handleResponse(void) {
     JSONValue* json = parseJSON(buffer);
     if (!json) return; // TODO: Properly handle error
 
     JSONValue* current = JSONGet(json, "current");
-    //TODO: Modify to only get the two currently displayed values on LCD
-//    JSONValue* temp_f = JSONGet(current, "temp_f");
-//    JSONValue* condition = JSONGet(current, "condition");
-//    JSONValue* conditionText = JSONGet(condition, "text");
-//    JSONValue* humidity = JSONGet(current, "humidity");
-//
-//    setCursorFirstLine();   // Set LCD cursor to start of first line
-//    //Display temp
-//    for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
-//        printChar(tempText[i]); // Print "Temp(F): "
-//    }
-//    //Convert value in temp_f to char array
-//    snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
-//    for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-//        printChar(numBuffer[i]);    // print value of temp_f
-//    }
-//
-//    setCursorSecondLine();  // Set LCD cursor to start of second line
-//    //Display humidity
-//    for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-//        printChar(humidText[i]);    // Print "Humidity: "
-//    }
-//    // Ditto above
-//    snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
-//    for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-//        printChar(numBuffer[i]);    // Print value of humidity
-//    }
 
-    setCursorFirstLine();
-
-    switch(data1){
-    case 0:{
-        JSONValue* temp_f = JSONGet(current, "temp_f");
-        //Display temp
-        for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
-            printChar(tempText[i]); // Print "Temp(F): "
-        }
-        //Convert value in temp_f to char array
-        snprintf(numBuffer, sizeof numBuffer, "%6.3f", temp_f->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // print value of temp_f
-        }
-        break;
-    }
-    case 1:{
-        JSONValue* humidity = JSONGet(current, "humidity");
-        //Display humidity
-        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-            printChar(humidText[i]);    // Print "Humidity: "
-        }
-        // Ditto above
-        snprintf(numBuffer, sizeof numBuffer, "%6.3f", humidity->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // Print value of humidity
-        }
-        break;
-    }
-    case 2:{
-        JSONValue* condition = JSONGet(current, "condition");
-        JSONValue* conditionText = JSONGet(condition, "text");
-        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-            printChar(condText[i]);    // Print "Humidity: "
-        }
-        for(i = 0; i < conditionText->value.str->length; i++){
-            printChar(conditionText->value.str->str[i]);
-        }
-        break;
-    }
-    }
+    setCursorFirstLine();   // Set LCD cursor to start of first line
+    switchData(data1, current);
 
     setCursorSecondLine();
-
-    switch(data2){
-    case 0:{
-        JSONValue* temp_f = JSONGet(current, "temp_f");
-        //Display temp
-        for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
-            printChar(tempText[i]); // Print "Temp(F): "
-        }
-        //Convert value in temp_f to char array
-        snprintf(numBuffer, sizeof numBuffer, "%6.3f", temp_f->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // print value of temp_f
-        }
-        break;
-    }
-    case 1:{
-        JSONValue* humidity = JSONGet(current, "humidity");
-        //Display humidity
-        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-            printChar(humidText[i]);    // Print "Humidity: "
-        }
-        // Ditto above
-        snprintf(numBuffer, sizeof numBuffer, "%6.3f", humidity->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // Print value of humidity
-        }
-        break;
-    }
-    case 2:{
-        JSONValue* condition = JSONGet(current, "condition");
-        JSONValue* conditionText = JSONGet(condition, "text");
-        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-            printChar(condText[i]);    // Print "Humidity: "
-        }
-        for(i = 0; i < conditionText->value.str->length; i++){
-            printChar(conditionText->value.str->str[i]);
-        }
-        break;
-    }
-    }
+    switchData(data2, current);
 
     destroyJSON(json);
 
