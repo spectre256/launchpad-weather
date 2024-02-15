@@ -24,11 +24,13 @@ char peek() {
 }
 
 // Helper function to parse NUL-terminated string
+// Does not consume any characters before confirming the match
 bool parseLiteral(const char* str) {
     while (*str != '\0') {
-        if (*(str++) != next()) {
+        if (*(str++) != peek()) {
             return false;
         }
+        next();
     }
 
     return true;
@@ -297,36 +299,42 @@ JSONValue* parseNumber(void) {
 }
 
 // Connor
-const char t[] = "true";
-const char f[] = "false";
+//const char t[] = "true";
+//const char f[] = "false";
 
 JSONValue* parseBool(void) {
-    JSONValue* newJSONBool = MALLOC(sizeof(JSONValue));
-    newJSONBool->type = BOOLEAN;
-    int i;
-    if (peek() == 't') {
-        for (i = 0; i < sizeof(t)/sizeof(char) - 1; i++) {
-            if(peek() == t[i]){
-                next();
-            } else {
-                return NULL;
-            }
-        }
-        newJSONBool->value.boolean = true;
-    } else if (peek() == 'f') {
-        for (i = 0; i < sizeof(f)/sizeof(char) - 1; i++) {
-            if (peek() == f[i]) {
-                next();
-            } else {
-                return NULL;
-            }
-        }
-        newJSONBool->value.boolean = false;
-    } else {
-        return NULL;
+//
+//    int i;
+//    if (peek() == 't') {
+//        for (i = 0; i < sizeof(t)/sizeof(char) - 1; i++) {
+//            if(peek() == t[i]){
+//                next();
+//            } else {
+//                return NULL;
+//            }
+//        }
+//        newJSONBool->value.boolean = true;
+//    } else if (peek() == 'f') {
+//        for (i = 0; i < sizeof(f)/sizeof(char) - 1; i++) {
+//            if (peek() == f[i]) {
+//                next();
+//            } else {
+//                return NULL;
+//            }
+//        }
+//        newJSONBool->value.boolean = false;
+//    } else {
+//        return NULL;
+//    }
+
+    bool isTrue = false;
+    if ((isTrue = parseLiteral("true")) || parseLiteral("false")) {
+        JSONValue* newJSONBool = MALLOC(sizeof(JSONValue));
+        newJSONBool->type = BOOLEAN;
+        newJSONBool->value.boolean = isTrue;
     }
 
-    return newJSONBool;
+    return NULL;
 }
 
 // Ellis
@@ -349,117 +357,117 @@ void parseWhitespace(void) {
 
 void testParser(void) {
     JSONValue* value;
-    // char* rawjson;
+    char* rawjson;
 
-//    // Parse null
-//    cursor = "null";
-//    value = parseNull();
-//    destroyJSON(value);
-//
-//    cursor = "nul";
-//    value = parseNull();
-//
-//    // Parse bools
-//    cursor = "true";
-//    value = parseBool();
-//    destroyJSON(value);
-//    cursor = "false";
-//    value = parseBool();
-//    destroyJSON(value);
-//
-//    cursor = "truth";
-//    value = parseBool();
-//    cursor = "fake";
-//    value = parseBool();
-//
-//    // Parse numbers
-//    cursor = "1";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "1.0";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "-123";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "-123.0045";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "1e-2";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "-1.2E+2";
-//    value = parseNumber();
-//    destroyJSON(value);
-//    cursor = "15E+0";
-//    value = parseNumber();
-//    destroyJSON(value);
-//
-//    cursor = "1.";
-//    value = parseNumber();
-//    cursor = "01";
-//    value = parseNumber();
-//
-//    // Parse strings
-//    cursor = "\"normal string\"";
-//    value = parseString();
-//    destroyJSON(value);
-//    cursor = "\"str with \\b \\n \\r \\f \\\\ \\/ \\\" \\t escaped chars\"";
-//    value = parseString();
-//    destroyJSON(value);
-//    cursor = "\"str with unicode: \\ua0f2 \\u0D3C \\u1234 \"";
-//    value = parseString();
-//    destroyJSON(value);
-//    cursor = "\"\"";
-//    value = parseString();
-//    destroyJSON(value);
-//
-//    cursor = "\"bad escape \\uaf2\"";
-//    value = parseString();
-//    cursor = "\"\0\"";
-//    value = parseString();
-//    cursor = "\"\x20\"";
-//    value = parseString();
-//    cursor = "\"\x7F\"";
-//    value = parseString();
-//    cursor = "\"wrong quote'";
-//    value = parseString();
-//
-//    // Parse arrays
-//    cursor = "[]";
-//    value = parseArray();
-//    destroyJSON(value);
-//    cursor = "[   ]";
-//    value = parseArray();
-//    destroyJSON(value);
-//    cursor = "[  -1.0 ]";
-//    value = parseArray();
-//    destroyJSON(value);
-//    cursor = "[1, \"string\",  true, null]";
-//    value = parseArray();
-//    destroyJSON(value);
-//    cursor = "[ 1, \"string\", [ \"nested array\"]  ]";
-//    value = parseArray();
-//    destroyJSON(value);
-//
-//    cursor = "[\"extra comma\",]";
-//    value = parseArray();
-//    cursor = "[  \"missing bracket\" ";
-//    value = parseArray();
-//
-//    // Parse objects
-//    rawjson = "{}";
-//    value = parseJSON(rawjson);
-//    destroyJSON(value);
-//
-//    rawjson = "{  \"location\" : \"Terre Haute\"}";
-//    value = parseJSON(rawjson);
-//    JSONValue* location = JSONGet(value, "location");
-//    JSONValue* invalid = JSONGet(value, "locatio"); // TODO: Since we're only checking the first character, this invalid key will return...
-//    destroyJSON(value);
+    // Parse null
+    cursor = "null";
+    value = parseNull();
+    destroyJSON(value);
+
+    cursor = "nul";
+    value = parseNull();
+
+    // Parse bools
+    cursor = "true";
+    value = parseBool();
+    destroyJSON(value);
+    cursor = "false";
+    value = parseBool();
+    destroyJSON(value);
+
+    cursor = "truth";
+    value = parseBool();
+    cursor = "fake";
+    value = parseBool();
+
+    // Parse numbers
+    cursor = "1";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "1.0";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "-123";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "-123.0045";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "1e-2";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "-1.2E+2";
+    value = parseNumber();
+    destroyJSON(value);
+    cursor = "15E+0";
+    value = parseNumber();
+    destroyJSON(value);
+
+    cursor = "1.";
+    value = parseNumber();
+    cursor = "01";
+    value = parseNumber();
+
+    // Parse strings
+    cursor = "\"normal string\"";
+    value = parseString();
+    destroyJSON(value);
+    cursor = "\"str with \\b \\n \\r \\f \\\\ \\/ \\\" \\t escaped chars\"";
+    value = parseString();
+    destroyJSON(value);
+    cursor = "\"str with unicode: \\ua0f2 \\u0D3C \\u1234 \"";
+    value = parseString();
+    destroyJSON(value);
+    cursor = "\"\"";
+    value = parseString();
+    destroyJSON(value);
+
+    cursor = "\"bad escape \\uaf2\"";
+    value = parseString();
+    cursor = "\"\0\"";
+    value = parseString();
+    cursor = "\"\x20\"";
+    value = parseString();
+    cursor = "\"\x7F\"";
+    value = parseString();
+    cursor = "\"wrong quote'";
+    value = parseString();
+
+    // Parse arrays
+    cursor = "[]";
+    value = parseArray();
+    destroyJSON(value);
+    cursor = "[   ]";
+    value = parseArray();
+    destroyJSON(value);
+    cursor = "[  -1.0 ]";
+    value = parseArray();
+    destroyJSON(value);
+    cursor = "[1, \"string\",  true, null]";
+    value = parseArray();
+    destroyJSON(value);
+    cursor = "[ 1, \"string\", [ \"nested array\"]  ]";
+    value = parseArray();
+    destroyJSON(value);
+
+    cursor = "[\"extra comma\",]";
+    value = parseArray();
+    cursor = "[  \"missing bracket\" ";
+    value = parseArray();
+
+    // Parse objects
+    rawjson = "{}";
+    value = parseJSON(rawjson);
+    destroyJSON(value);
+
+    rawjson = "{  \"location\" : \"Terre Haute\"}";
+    value = parseJSON(rawjson);
+    JSONValue* location = JSONGet(value, "location");
+    JSONValue* invalid = JSONGet(value, "locatio"); // TODO: Since we're only checking the first character, this invalid key will return...
+    destroyJSON(value);
 
     value = parseJSON(exampleResponse);
-    JSONValue* location = JSONGet(value, "location");
+    location = JSONGet(value, "location");
     JSONValue* locationName = JSONGet(location, "name");
     JSONValue* current = JSONGet(value, "current");
     JSONValue* temp_f = JSONGet(current, "temp_f");

@@ -11,7 +11,7 @@
 // #define TEST
 #define BUFFER_SIZE 280
 #define CLK_FREQUENCY 48000000 // MCLK using 48MHz HFXT
-#define TIMER_TICKS 1250 // 5 s = X ticks / (32kHz / 128)
+#define TIMER_TICKS 1250 // 5 s * (32kHz / 128)
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
@@ -51,7 +51,7 @@ void sendRequest(void) {
 void handleResponse(void) {
     int i;
     JSONValue* json = parseJSON(buffer);
-    if (json == NULL) return; // TODO: Properly handle error
+    if (!json) return; // TODO: Properly handle error
 
     JSONValue* current = JSONGet(json, "current");
     //TODO: Modify to only get the two currently displayed values on LCD
@@ -258,7 +258,7 @@ int main(void) {
 
     #endif
 
-    // sendRequest();
+    sendRequest();
 
     // Configure timer to send another request every 5 seconds
     TIMER_A0->CCR[0] = TIMER_TICKS;
@@ -277,7 +277,7 @@ int main(void) {
         }
 
         // Handle button press
-        if (((P1->IN & 0x0010) >> 4) == 0) {
+        if (!(P1->IN & 0x0010)) {
             // create function in lcd.c to cycle info on LCD screen
             cycleLCD();
             // lazy debounce for now
@@ -296,8 +296,8 @@ void EUSCIA0_IRQHandler(void) {
         // Note that reading RX buffer clears the flag and removes value from buffer
         char input = EUSCI_A0->RXBUF;
 
-        // If the buffer is full, don't do anything
-        if (buffer_i >= BUFFER_SIZE) return;
+        // If the buffer is full or there is already a response pending, don't do anything
+        if (responseReady || buffer_i >= BUFFER_SIZE) return;
 
         // Set flag if input is a NUL character
         if (input == '\0') {
