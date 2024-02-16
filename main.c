@@ -58,10 +58,12 @@ void switchData(int data, JSONValue* current){
             printChar(tempText[i]); // Print "Temp(F): "
         }
         //Convert value in temp_f to char array
-        snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
+        snprintf(numBuffer, sizeof numBuffer, "%6.3f", temp_f->value.number);
         for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
             printChar(numBuffer[i]);    // print value of temp_f
         }
+
+        break;
     }
     case 1:{
         JSONValue* humidity = JSONGet(current, "humidity");
@@ -70,10 +72,12 @@ void switchData(int data, JSONValue* current){
             printChar(humidText[i]);    // Print "Humidity: "
         }
         // Ditto above
-        snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
+        snprintf(numBuffer, sizeof numBuffer, "%6.3f", humidity->value.number);
         for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
             printChar(numBuffer[i]);    // Print value of humidity
         }
+
+        break;
     }
     case 2:{
         JSONValue* condition = JSONGet(current, "condition");
@@ -206,6 +210,8 @@ int main(void) {
 
     __enable_irq(); // Enable global interrupt
 
+    sendRequest();
+
     while (true) {
         if (responseReady) {
             handleResponse();
@@ -262,7 +268,7 @@ void EUSCIA0_IRQHandler(void) {
 // Timer interrupt to send request every 5 s
 void TA0_N_IRQHandler(void) {
     // Not necessary to check which flag is set because only one IRQ mapped to this interrupt vector
-    sendRequest();
+    // sendRequest();
 
     // Clear timer compare flag in TA3CCTL0
     TIMER_A0->CTL &= ~TIMER_A_CTL_IFG;
