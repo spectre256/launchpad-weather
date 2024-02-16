@@ -4,17 +4,16 @@
 size_t allocated_map = 0;
 
 #define MALLOC(size) \
-    ({ allocated_map += size; \
+    ({  allocated_map += size; \
         malloc(size); })
 
-#define MIN(a, b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+#define FREE(ptr) \
+    ({  allocated_map -= sizeof(*(__typeof__(ptr)){NULL}); \
+        free(ptr); })
 
-#define ABS(a) \
-   ({ __typeof__ (a) _a = (a); \
-     _a < 0 ? -_a : _a; })
+#define MIN(a, b) (a < b ? a : b)
+
+#define mapIsEmpty(map) (map->prefixLen == 0 && map->value.leaf == NULL)
 
 // Returns the index at which two strings differ, or -1 if they're equal
 int strdiff(const char* fst, size_t lenFst, const char* snd, size_t lenSnd) {
@@ -46,31 +45,28 @@ Map* newMap() {
     return map;
 }
 
-void destroyMap(Map* map) {
+void destroyMap(Map* map, void (*freeValue)(void*)) {
     switch (map->type) {
     case LEAF:
-        free(map->value.leaf);
+        freeValue(map->value.leaf);
         break;
     case TREE: {
         Map* child;
         arrayForeach(map->value.tree, child, _i) {
-            destroyMap(child);
+            destroyMap(child, freeValue);
         }
     }
     }
 
-    free(map);
-}
-
-bool mapIsEmpty(Map* map) {
-    return map->prefixLen == 0 && map->value.leaf == NULL;
+    FREE(map);
 }
 
 // Inserts a new key-value pair into the map
-void mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
+MapErr mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
     // Create a new map if it doesn't already exist
     if (!map) {
         map = newMap();
+        if (!map) return MAP_ALLOC_ERR;
     }
 
     int i = strdiff(key, keyLen, map->prefix, map->prefixLen);
@@ -86,29 +82,35 @@ void mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
 
             // Child with new value
             Map* childNew = newMap();
+            if (!childNew) return MAP_ALLOC_ERR;
             childNew->prefix = &key[i];
             childNew->prefixLen = keyLen - i;
             childNew->value.leaf = value;
 
+            // If the map is empty, replace it with a new leaf node
+            if (mapIsEmpty(map)) {
+                FREE(map);
+                *map = *childNew;
+                return SUCCESS;
+            }
+
             // Child with old value
             Map* childOld = newMap();
+            if (!childOld) return MAP_ALLOC_ERR;
             childOld->prefix = &map->prefix[i];
             childOld->prefixLen = map->prefixLen - i;
             childOld->value.leaf = map->value.leaf;
-
-            // If the map is empty, replace it with a new leaf node
-            if (mapIsEmpty(map)) {
-                *map = *childNew;
-                return;
-            }
 
             // Set the map to a tree with the two children
             map->prefixLen = i;
             map->type = TREE;
             map->value.tree = newArray();
+            if (!map->value.tree) return ARRAY_ALLOC_ERR;
 
-            arrayAppend(map->value.tree, childNew);
-            arrayAppend(map->value.tree, childOld);
+            ArrayErr err = arrayAppend(map->value.tree, childNew);
+            if (err) return ARRAY_ALLOC_ERR;
+            err = arrayAppend(map->value.tree, childOld);
+            if (err) return ARRAY_ALLOC_ERR;
         }
         break;
     case TREE:
@@ -121,29 +123,31 @@ void mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
                 arrayForeach(map->value.tree, child, _i) {
                     if (key[i] == child->prefix[0]) {
                         // Once the matching prefix is found, call insert on the child
-                        mapInsert(child, &key[i], keyLen - i, value);
-                        return;
+                        return mapInsert(child, &key[i], keyLen - i, value);
                     }
                 }
             }
 
             // If a matching child was not found, insert a new child with the remainder of the key
             Map* childNew = newMap();
+            if (!childNew) return MAP_ALLOC_ERR;
             childNew->prefix = &key[i];
             childNew->prefixLen = keyLen - i;
             childNew->value.leaf = value;
 
-            arrayAppend(map->value.tree, childNew);
-            return;
+            ArrayErr err = arrayAppend(map->value.tree, childNew);
+            if (err) return ARRAY_ALLOC_ERR;
         } else {
             // Otherwise, split the prefix like before, retaining the current map's children
             Map* childNew = newMap();
+            if (!childNew) return MAP_ALLOC_ERR;
             childNew->prefix = &key[i];
             childNew->prefixLen = keyLen - i;
             childNew->value.leaf = value;
 
             // Child with old value, retaining children
             Map* childOld = newMap();
+            if (!childOld) return MAP_ALLOC_ERR;
             childOld->prefix = &map->prefix[i];
             childOld->prefixLen = map->prefixLen - i;
             childOld->value.tree = map->value.tree;
@@ -151,11 +155,16 @@ void mapInsert(Map* map, const char* key, size_t keyLen, void* value) {
             // Set the map to a tree with the two children
             map->prefixLen = i;
             map->value.tree = newArray();
+            if (!map->value.tree) return ARRAY_ALLOC_ERR;
 
-            arrayAppend(map->value.tree, childNew);
-            arrayAppend(map->value.tree, childOld);
+            ArrayErr err = arrayAppend(map->value.tree, childNew);
+            if (err) return ARRAY_ALLOC_ERR;
+            err = arrayAppend(map->value.tree, childOld);
+            if (err) return ARRAY_ALLOC_ERR;
         }
     }
+
+    return SUCCESS;
 }
 
 void* mapGet(const Map* map, const char* key, size_t keyLen) {
@@ -184,45 +193,45 @@ void* mapGet(const Map* map, const char* key, size_t keyLen) {
 
 void testMap(void) {
     Map* map = newMap();
-    int* a = MALLOC(sizeof(int));
+    int* a = malloc(sizeof(int));
     *a = 1;
-    mapInsert(map, "romane", 6, a);
+    MapErr err = mapInsert(map, "romane", 6, a);
     int* a_new = (int*)mapGet(map, "romane", 6);
 
-    int* b = MALLOC(sizeof(int));
+    int* b = malloc(sizeof(int));
     *b = 2;
-    mapInsert(map, "romanus", 7, b);
+    err = mapInsert(map, "romanus", 7, b);
     int* b_new = (int*)mapGet(map, "romanus", 7);
 
-    int* c = MALLOC(sizeof(int));
+    int* c = malloc(sizeof(int));
     *c = 3;
-    mapInsert(map, "romulus", 7, c);
+    err = mapInsert(map, "romulus", 7, c);
     int* c_new = (int*)mapGet(map, "romulus", 7);
 
-    int* d = MALLOC(sizeof(int));
+    int* d = malloc(sizeof(int));
     *d = 4;
-    mapInsert(map, "rubens", 6, d);
+    err = mapInsert(map, "rubens", 6, d);
     int* d_new = (int*)mapGet(map, "rubens", 6);
 
-    int* e = MALLOC(sizeof(int));
+    int* e = malloc(sizeof(int));
     *e = 5;
-    mapInsert(map, "ruber", 5, e);
+    err = mapInsert(map, "ruber", 5, e);
     int* e_new = (int*)mapGet(map, "ruber", 5);
 
-    int* f = MALLOC(sizeof(int));
+    int* f = malloc(sizeof(int));
     *f = 6;
-    mapInsert(map, "rubicon", 7, f);
+    err = mapInsert(map, "rubicon", 7, f);
     int* f_new = (int*)mapGet(map, "rubicon", 7);
 
-    int* g = MALLOC(sizeof(int));
+    int* g = malloc(sizeof(int));
     *g = 7;
-    mapInsert(map, "rubicundus", 10, g);
+    err = mapInsert(map, "rubicundus", 10, g);
     int* g_new = (int*)mapGet(map, "rubicundus", 10);
 
-    int* h = MALLOC(sizeof(int));
+    int* h = malloc(sizeof(int));
     *h = 8;
-    mapInsert(map, "roman", 5, h);
+    err = mapInsert(map, "roman", 5, h);
     int* h_new = (int*)mapGet(map, "roman", 5);
 
-    destroyMap(map);
+    destroyMap(map, free);
 }

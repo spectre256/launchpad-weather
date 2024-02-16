@@ -4,8 +4,12 @@
 size_t allocated_array = 0;
 
 #define MALLOC(size) \
-    ({ allocated_array += size; \
+    ({  allocated_array += size; \
         malloc(size); })
+
+#define FREE(ptr) \
+    ({  allocated_array -= sizeof(*(__typeof__(ptr)){NULL}); \
+        free(ptr); })
 
 Array* newArray() {
     Array* array = (Array*)MALLOC(sizeof(Array));
@@ -16,51 +20,69 @@ Array* newArray() {
     array->length = 0;
     array->capacity = DEFAULT_CAPACITY;
     array->buffer = MALLOC(DEFAULT_CAPACITY * sizeof(void*));
+    if (!array->buffer) {
+        FREE(array);
+        return NULL;
+    }
 
     return array;
 }
 
-void destroyArray(Array* array) {
+void destroyArray(Array* array, void (*freeValue)(void*)) {
     void* value;
     arrayForeach(array, value, _i) {
-        free(value);
+        freeValue(value);
+        allocated_array -= sizeof(void*);
     }
-    free(array->buffer);
-    free(array);
+
+    FREE(array->buffer);
+    FREE(array);
 }
 
 void* arrayGet(Array* array, int i) {
+    if (i < 0 || i >= array->length) return NULL;
     return array->buffer[i];
 }
 
-void arrayAppend(Array* array, void* value) {
+ArrayErr arrayAppend(Array* array, void* value) {
     if (array->length + 1 > array->capacity) {
+        void** ptr = realloc(array->buffer, (array->capacity + RESIZE_CAPACITY) * sizeof(void*));
+        if (!ptr) return ARRAY_REALLOC_ERR;
+
+        allocated_array += RESIZE_CAPACITY * sizeof(void*);
         array->capacity += RESIZE_CAPACITY;
-        array->buffer = realloc(array->buffer, array->capacity * sizeof(void*));
+        array->buffer = ptr;
     }
 
     array->buffer[array->length++] = value;
+    return SUCCESS;
 }
 
-void arrayDelete(Array* array, int i) {
+ArrayErr arrayDelete(Array* array, int i) {
     array->length--;
     for (; i < array->length; i++) {
         array->buffer[i] = array->buffer[i + 1];
     }
 
     if (array->length < array->capacity - RESIZE_CAPACITY) {
+        void** ptr = realloc(array->buffer, (array->capacity - RESIZE_CAPACITY) * sizeof(void*));
+        if (!ptr) return ARRAY_REALLOC_ERR;
+
+        allocated_array -= RESIZE_CAPACITY * sizeof(void*);
         array->capacity -= RESIZE_CAPACITY;
-        array->buffer = realloc(array->buffer, array->capacity * sizeof(void*));
+        array->buffer = ptr;
     }
+
+    return SUCCESS;
 }
 
 void testArray(void) {
     Array* array = newArray();
     int len = array->length;
 
-    // Allocate just enough members to cause the buffer to resize
-    while (len <= DEFAULT_CAPACITY) {
-        int* val = MALLOC(sizeof(int));
+    // Allocate enough members to cause the buffer to resize
+    while (len <= 3 * DEFAULT_CAPACITY) {
+        int* val = malloc(sizeof(int));
         *val = len;
         arrayAppend(array, val);
         len++;
@@ -72,5 +94,5 @@ void testArray(void) {
     arrayDelete(array, len - 2);
     arrayDelete(array, len - 1); // Check capacity/length here to ensure buffer gets resized
 
-    destroyArray(array);
+    destroyArray(array, free);
 }

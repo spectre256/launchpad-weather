@@ -58,10 +58,12 @@ void switchData(int data, JSONValue* current){
             printChar(tempText[i]); // Print "Temp(F): "
         }
         //Convert value in temp_f to char array
-        snprintf(numBuffer, sizeof numBuffer, "%f", temp_f->value.number);
+        snprintf(numBuffer, sizeof(numBuffer), "%6.3f", temp_f->value.number);
         for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
             printChar(numBuffer[i]);    // print value of temp_f
         }
+
+        break;
     }
     case 1:{
         JSONValue* humidity = JSONGet(current, "humidity");
@@ -70,10 +72,12 @@ void switchData(int data, JSONValue* current){
             printChar(humidText[i]);    // Print "Humidity: "
         }
         // Ditto above
-        snprintf(numBuffer, sizeof numBuffer, "%f", humidity->value.number);
+        snprintf(numBuffer, sizeof(numBuffer), "%6.3f", humidity->value.number);
         for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
             printChar(numBuffer[i]);    // Print value of humidity
         }
+
+        break;
     }
     case 2:{
         JSONValue* condition = JSONGet(current, "condition");
@@ -131,9 +135,6 @@ int main(void) {
     // Stop Watchdog timer
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;
 
-    int delay;
-
-    // TODO: Replace with dynamically resizable buffer
     buffer = malloc(BUFFER_SIZE * sizeof(char));
 
     // Config stuff
@@ -177,13 +178,13 @@ int main(void) {
     __enable_irq();
 
     // Enable eUSCIA0 interrupt in NVIC module
-    NVIC->ISER[0] = (1 << EUSCIA0_IRQn );
+    NVIC->ISER[0] = (1 << EUSCIA0_IRQn);
 
     // Optional tests
     #ifdef TEST
 
     // Array tests
-    testArray();
+    // testArray();
 
     // Map tests
     testMap();
@@ -205,6 +206,10 @@ int main(void) {
     NVIC->ISER[0] |=  1 << TA0_N_IRQn;
 
     __enable_irq(); // Enable global interrupt
+
+    int delay;
+
+    sendRequest();
 
     while (true) {
         if (responseReady) {
@@ -238,6 +243,7 @@ void EUSCIA0_IRQHandler(void) {
         if (input == '\0') {
             buffer[buffer_i] = '\0';
             buffer_i = 0;
+            nl_cnt = 0;
             responseReady = true;
             return;
         }
@@ -262,17 +268,9 @@ void EUSCIA0_IRQHandler(void) {
 // Timer interrupt to send request every 5 s
 void TA0_N_IRQHandler(void) {
     // Not necessary to check which flag is set because only one IRQ mapped to this interrupt vector
-    sendRequest();
+    // sendRequest();
 
     // Clear timer compare flag in TA3CCTL0
     TIMER_A0->CTL &= ~TIMER_A_CTL_IFG;
 
 }
-
-// TODO: Button interrupt to send request again and reset timer
-//void DIO_PORT_IRQHandler(void){
-//    if(P1->IFG & DIO_PORT_IV__IFG4){
-//            cycleLCD();
-//            P1->IE &= ~BIT4;
-//    }
-//}

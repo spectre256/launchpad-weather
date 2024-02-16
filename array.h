@@ -27,15 +27,22 @@ typedef struct {
     void** buffer;
 } Array;
 
+typedef enum {
+    SUCCESS,
+    ARRAY_ALLOC_ERR,
+    ARRAY_REALLOC_ERR,
+    _ArrayErrN,
+} ArrayErr;
+
 extern Array* newArray();
 
-extern void destroyArray(Array* array);
+extern void destroyArray(Array* array, void (*freeValue)(void*));
 
-extern void arrayAppend(Array* array, void* value);
+extern ArrayErr arrayAppend(Array* array, void* value);
 
 extern void* arrayGet(Array* array, int i);
 
-extern void arrayDelete(Array* array, int i);
+extern ArrayErr arrayDelete(Array* array, int i);
 
 extern void testArray(void);
 
