@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-typedef struct Map {
+typedef struct {
     const char* prefix;
     size_t prefixLen;
     enum {LEAF, TREE} type;
@@ -26,17 +26,22 @@ typedef struct Map {
     } value;
 } Map;
 
-extern Map* newMap();
+typedef enum {
+    MAP_ALLOC_ERR = _ArrayErrN,
+    _MapErrN,
+} MapErr;
 
-extern void destroyMap(Map* map);
+Map* newMap(void);
 
-extern bool mapIsEmpty(Map* map);
+void destroyMap(Map* map, void (*freeValue)(void*));
 
-extern void mapInsert(Map* map, const char* key, size_t keyLen, void* value);
+bool mapIsEmpty(Map* map);
 
-extern void* mapGet(const Map* map, const char* key, size_t keyLen);
+MapErr mapInsert(Map* map, const char* key, size_t keyLen, void* value);
 
-extern void testMap(void);
+void* mapGet(const Map* map, const char* key, size_t keyLen);
+
+void testMap(void);
 
 #ifdef __cplusplus
 }

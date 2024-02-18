@@ -15,27 +15,35 @@
 extern "C" {
 #endif
 
-typedef struct JSONString {
+typedef struct {
     const char* str;
     size_t length;
 } JSONString;
 
-typedef struct JSONValue {
-    enum {OBJECT, ARRAY, STRING, NUMBER, BOOLEAN, JSONNULL} type;
+typedef enum {
+    JSON_ALLOC_ERR = _MapErrN,
+    UNEXPECTED_CHAR,
+} ParserErr;
+
+typedef struct {
+    enum {OBJECT, ARRAY, STRING, NUMBER, BOOLEAN, JSONNULL, JSONERR} type;
     union {
         Map* object;
         Array* array;
         JSONString* str;
         bool boolean;
         float number;
+        ParserErr err;
     } value;
 } JSONValue;
 
-JSONValue* parseJSON(char* str);
+JSONValue* parseJSON(const char* str);
 
 JSONValue* JSONGet(JSONValue* object, char* key);
 
 void destroyJSON(JSONValue* value);
+
+void destroyJSONVoid(void* value);
 
 JSONValue* parseObject(void);
 

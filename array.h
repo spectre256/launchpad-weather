@@ -15,11 +15,15 @@
 // Takes an array, a declared variable to hold the current child, and a name for the loop index
 #define arrayForeach(array, child, i) \
     int i; \
-    for(i = 0, child = (__typeof__ (child))(array)->buffer[0]; i < (array)->length; child = (__typeof__ (child))(array)->buffer[++i])
+    for (i = 0; i < (array)->length && (child = (__typeof__(child))(array)->buffer[i]); i++)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdlib.h>
+
+extern size_t allocated_array;
 
 typedef struct {
     int length;
@@ -27,17 +31,24 @@ typedef struct {
     void** buffer;
 } Array;
 
-extern Array* newArray();
+typedef enum {
+    SUCCESS,
+    ARRAY_ALLOC_ERR,
+    ARRAY_REALLOC_ERR,
+    _ArrayErrN,
+} ArrayErr;
 
-extern void destroyArray(Array* array);
+Array* newArray(void);
 
-extern void arrayAppend(Array* array, void* value);
+void destroyArray(Array* array, void (*freeValue)(void*));
 
-extern void* arrayGet(Array* array, int i);
+ArrayErr arrayAppend(Array* array, void* value);
 
-extern void arrayDelete(Array* array, int i);
+void* arrayGet(Array* array, int i);
 
-extern void testArray(void);
+ArrayErr arrayDelete(Array* array, int i, void (*freeValue)(void*));
+
+void testArray(void);
 
 #ifdef __cplusplus
 }

@@ -11,15 +11,30 @@ const char* cursor;
 
 size_t allocated_json = 0;
 
+// Wrappers around malloc and free to track memory usage
 #define MALLOC(size) \
-    ({ allocated_json += size; \
+    ({  allocated_json += size; \
         malloc(size); })
 
-char next() {
+#define FREE(ptr) \
+    ({  allocated_json -= sizeof(*(__typeof__(ptr)){NULL}); \
+        free(ptr); })
+
+// Simplifies returning error in JSONValue struct
+#define ERR(jsonvalue, error) do { \
+    jsonvalue->type = JSONERR; \
+    jsonvalue->value.err = error; \
+    return jsonvalue; \
+} while (0)
+
+// Error propagation
+#define IS_ERR(jsonvalue) !jsonvalue || jsonvalue->type == JSONERR
+
+inline char next() {
     return *(cursor++);
 }
 
-char peek() {
+inline char peek() {
     return *cursor;
 }
 
@@ -36,7 +51,7 @@ bool parseLiteral(const char* str) {
     return true;
 }
 
-JSONValue* parseJSON(char* str) {
+JSONValue* parseJSON(const char* str) {
     if (!str) return NULL;
     cursor = str;
     return parseObject();
@@ -48,28 +63,36 @@ JSONValue* JSONGet(JSONValue* object, char* key) {
     return mapGet(object->value.object, key, strlen(key));
 }
 
-void destroyJSON(JSONValue* value) {
+inline void destroyJSONVoid(void* value) {
+    destroyJSON((JSONValue*)value);
+}
+
+inline void destroyJSON(JSONValue* value) {
     if (!value) return;
     switch (value->type) {
     case OBJECT:
-        destroyMap(value->value.object);
+        destroyMap(value->value.object, destroyJSONVoid);
         break;
     case ARRAY:
-        destroyArray(value->value.array);
+        destroyArray(value->value.array, destroyJSONVoid);
         break;
     case STRING:
-        free(value->value.str);
+        FREE(value->value.str);
     }
 
-    free(value);
+    FREE(value);
 }
 
 // Ellis
 JSONValue* parseObject(void) {
+    JSONValue* object = MALLOC(sizeof(JSONValue));
+    if (!object) return NULL;
+
     Map* map = newMap();
+    if (!map) ERR(object, MAP_ALLOC_ERR);
 
     // Parse opening bracket and whitespace
-    if (next() != '{') return NULL;
+    if (next() != '{') ERR(object, UNEXPECTED_CHAR);
     parseWhitespace();
 
     if (peek() == '}') {
@@ -80,21 +103,30 @@ JSONValue* parseObject(void) {
         while (true) {
             // Parse string then whitespace
             JSONValue* str = parseString();
-            if (str == NULL) return NULL;
+            if (IS_ERR(str)) {
+                destroyMap(map, destroyJSONVoid);
+                FREE(object);
+                return str;
+            }
             parseWhitespace();
 
             // Parse colon
-            if (next() != ':') return NULL;
+            if (next() != ':') ERR(object, UNEXPECTED_CHAR);
 
             // Parse value
             JSONValue* value = parseValue();
-            if (value == NULL) return NULL;
+            if (IS_ERR(value)) {
+                destroyMap(map, destroyJSONVoid);
+                FREE(object);
+                return value;
+            }
 
             // Add key-value pair to map
             JSONString* key = str->value.str;
-            mapInsert(map, key->str, key->length, (void*)value);
+            MapErr err = mapInsert(map, key->str, key->length, (void*)value);
+            if (err) ERR(object, err);
+
             destroyJSON(str);
-            allocated_json -= sizeof(JSONString);
 
             // Parse comma or break, then whitespace
             if (peek() != ',') break;
@@ -102,10 +134,9 @@ JSONValue* parseObject(void) {
             parseWhitespace();
         }
 
-        if (next() != '}') return NULL;
+        if (next() != '}') ERR(object, UNEXPECTED_CHAR);
     }
 
-    JSONValue* object = MALLOC(sizeof(JSONValue));
     object->type = OBJECT;
     object->value.object = map;
     return object;
@@ -113,7 +144,11 @@ JSONValue* parseObject(void) {
 
 // Connor
 JSONValue* parseArray(void) {
+    JSONValue* newJSONArray = MALLOC(sizeof(JSONValue));
+    if (!newJSONArray) return NULL;
+
     Array* modifiableArray = newArray();
+    if (!modifiableArray) ERR(newJSONArray, ARRAY_ALLOC_ERR);
 
     // Parse opening bracket and whitespace
     if (next() != '[') return NULL;
@@ -126,18 +161,29 @@ JSONValue* parseArray(void) {
         // Otherwise, parse values
         while (true) {
             JSONValue* value = parseValue();
-            if (!value) return NULL;
-            arrayAppend(modifiableArray, value);
+            if (IS_ERR(value)) {
+                destroyArray(modifiableArray, destroyJSONVoid);
+                FREE(newJSONArray);
+                return value;
+            }
+
+            ArrayErr err = arrayAppend(modifiableArray, value);
+            if (err) {
+                destroyArray(modifiableArray, destroyJSONVoid);
+                ERR(newJSONArray, err);
+            }
 
             // Parse comma or break, then whitespace
             if (peek() != ',') break;
             next();
         }
 
-        if (next() != ']') return NULL;
+        if (next() != ']') {
+            destroyArray(modifiableArray, destroyJSONVoid);
+            ERR(newJSONArray, UNEXPECTED_CHAR);
+        }
     }
 
-    JSONValue* newJSONArray = MALLOC(sizeof(JSONValue));
     newJSONArray->value.array = modifiableArray;
     newJSONArray->type = ARRAY;
     return newJSONArray;
@@ -145,7 +191,7 @@ JSONValue* parseArray(void) {
 
 
 // Ellis
-JSONValue* parseValue(void) {
+inline JSONValue* parseValue(void) {
     parseWhitespace();
 
     JSONValue* value = NULL;
@@ -179,19 +225,19 @@ JSONValue* parseValue(void) {
 
 // Connor
 JSONValue* parseString(void) {
-    // Parse initial quote
-    if (next() != '"') return NULL;
-
     JSONValue* newJSONString = MALLOC(sizeof(JSONValue));
-    newJSONString->type = STRING;
-    newJSONString->value.str = MALLOC(sizeof(JSONString));
-    newJSONString->value.str->str = cursor;
+    if (!newJSONString) return NULL;
+
+    // Parse initial quote
+    if (next() != '"') ERR(newJSONString, UNEXPECTED_CHAR);
+
+    const char* start = cursor;
 
     int len = 0;
     char c;
     while ((c = next()) != '"') {
         // Disallow control characters
-        if (iscntrl(c)) return NULL;
+        if (iscntrl(c)) ERR(newJSONString, UNEXPECTED_CHAR);
 
         if (c == '\\') {
             len++;
@@ -201,7 +247,7 @@ JSONValue* parseString(void) {
                 // Parse 4 hex digits
                 int i;
                 for (i = 0; i < 4; i++) {
-                    if (!isxdigit(next())) return NULL;
+                    if (!isxdigit(next())) ERR(newJSONString, UNEXPECTED_CHAR);
                     len++;
                 }
                 break;
@@ -216,19 +262,27 @@ JSONValue* parseString(void) {
             case 't':
                 break;
             default:
-                return NULL;
+                ERR(newJSONString, UNEXPECTED_CHAR);
             }
         }
 
         len++;
     }
 
+    newJSONString->value.str = MALLOC(sizeof(JSONString));
+    if (!newJSONString->value.str) ERR(newJSONString, JSON_ALLOC_ERR);
+
+    newJSONString->type = STRING;
+    newJSONString->value.str->str = start;
     newJSONString->value.str->length = len;
     return newJSONString;
 }
 
 // Ellis
 JSONValue* parseNumber(void) {
+    JSONValue* number = MALLOC(sizeof(JSONValue));
+    if (!number) return NULL;
+
     float multiplier = 1;
 
     // Optional negative sign
@@ -243,15 +297,13 @@ JSONValue* parseNumber(void) {
     if (c == '0') {
         // Skip parsing if the integer part is a zero
         // In this case, the fractional part is not optional
-        if (next() != '.') return NULL;
+        if (next() != '.') ERR(number, UNEXPECTED_CHAR);
     } else {
         // Parse first non-zero digit
         if (c >= '1' && c <= '9') {
             integerPart = c - '0';
             next();
-        } else {
-            return NULL;
-        }
+        } else ERR(number, UNEXPECTED_CHAR);
 
         // Parse 0 or more digits
         for (; isdigit(c = peek()); next()) {
@@ -265,7 +317,7 @@ JSONValue* parseNumber(void) {
         next();
 
         // Parse at least 1 digit
-        if (!isdigit(peek())) return NULL;
+        if (!isdigit(peek())) ERR(number, UNEXPECTED_CHAR);
 
         int divisor = 10;
         for (; isdigit(c = peek()); next()) {
@@ -280,10 +332,10 @@ JSONValue* parseNumber(void) {
 
         // Parse exponent sign
         char sign = next();
-        if (sign != '+' && sign != '-') return NULL;
+        if (sign != '+' && sign != '-') ERR(number, UNEXPECTED_CHAR);
 
         // Parse at least 1 digit
-        if (!isdigit(peek())) return NULL;
+        if (!isdigit(peek())) ERR(number, UNEXPECTED_CHAR);
 
         int exponent = 0;
         for (; isdigit(c = peek()); next()) {
@@ -292,7 +344,6 @@ JSONValue* parseNumber(void) {
         multiplier *= pow(10, (sign == '+' ? 1 : -1) * exponent);
     }
 
-    JSONValue* number = MALLOC(sizeof(JSONValue));
     number->type = NUMBER;
     number->value.number = multiplier * (integerPart + fractionalPart);
     return number;
@@ -326,26 +377,26 @@ JSONValue* parseBool(void) {
 //    } else {
 //        return NULL;
 //    }
+    JSONValue* newJSONBool = MALLOC(sizeof(JSONValue));
+    if (!newJSONBool) return NULL;
 
     bool isTrue = false;
     if ((isTrue = parseLiteral("true")) || parseLiteral("false")) {
-        JSONValue* newJSONBool = MALLOC(sizeof(JSONValue));
         newJSONBool->type = BOOLEAN;
         newJSONBool->value.boolean = isTrue;
-    }
-
-    return NULL;
+        return newJSONBool;
+    } else ERR(newJSONBool, UNEXPECTED_CHAR);
 }
 
 // Ellis
 JSONValue* parseNull(void) {
+    JSONValue* value = MALLOC(sizeof(JSONValue));
+    if (!value) return NULL;
+
     if (parseLiteral("null")) {
-        JSONValue* value = MALLOC(sizeof(JSONValue));
         value->type = JSONNULL;
         return value;
-    } else {
-        return NULL;
-    }
+    } else ERR(value, UNEXPECTED_CHAR);
 }
 
 // Connor
@@ -366,6 +417,7 @@ void testParser(void) {
 
     cursor = "nul";
     value = parseNull();
+    destroyJSON(value);
 
     // Parse bools
     cursor = "true";
@@ -377,8 +429,10 @@ void testParser(void) {
 
     cursor = "truth";
     value = parseBool();
+    destroyJSON(value);
     cursor = "fake";
     value = parseBool();
+    destroyJSON(value);
 
     // Parse numbers
     cursor = "1";
@@ -405,8 +459,10 @@ void testParser(void) {
 
     cursor = "1.";
     value = parseNumber();
+    destroyJSON(value);
     cursor = "01";
     value = parseNumber();
+    destroyJSON(value);
 
     // Parse strings
     cursor = "\"normal string\"";
@@ -424,14 +480,19 @@ void testParser(void) {
 
     cursor = "\"bad escape \\uaf2\"";
     value = parseString();
+    destroyJSON(value);
     cursor = "\"\0\"";
     value = parseString();
+    destroyJSON(value);
     cursor = "\"\x20\"";
     value = parseString();
+    destroyJSON(value);
     cursor = "\"\x7F\"";
     value = parseString();
+    destroyJSON(value);
     cursor = "\"wrong quote'";
     value = parseString();
+    destroyJSON(value);
 
     // Parse arrays
     cursor = "[]";
@@ -452,8 +513,10 @@ void testParser(void) {
 
     cursor = "[\"extra comma\",]";
     value = parseArray();
+    destroyJSON(value);
     cursor = "[  \"missing bracket\" ";
     value = parseArray();
+    destroyJSON(value);
 
     // Parse objects
     rawjson = "{}";
