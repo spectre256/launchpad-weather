@@ -295,9 +295,11 @@ JSONValue* parseNumber(void) {
     int integerPart = 0;
     char c = peek();
     if (c == '0') {
-        // Skip parsing if the integer part is a zero
-        // In this case, the fractional part is not optional
-        if (next() != '.') ERR(number, UNEXPECTED_CHAR);
+        // Disallow leading zeroes
+        next();
+        if (isdigit(peek())) {
+            ERR(number, UNEXPECTED_CHAR);
+        }
     } else {
         // Parse first non-zero digit
         if (c >= '1' && c <= '9') {
