@@ -15,9 +15,9 @@
 
 /* Global Variables */
 const char httpRequest[] = "GET /v1/current.json?key=921e078dd8a44054a06172330242501&q=47803 HTTP/1.1\nHost: api.weatherapi.com\nUser-Agent: Windows NT 10.0; +https://github.com/spectre256/forwarder Forwarder/0.0.1\nAccept: application/json\n\n";
-const char tempText[] = "Temp(F): ";
-const char humidText[] = "Humidity: ";
-const char condText[] = "Condition: ";
+
+JSONValue* json = NULL;
+JSONValue* current = NULL;
 
 volatile char* buffer;
 volatile int buffer_i = 0;
@@ -93,19 +93,38 @@ void switchData(int data, JSONValue* current){
 
 }
 
+inline void updateLCD(void) {
+    setCursorFirstLine();   // Set LCD cursor to start of first line
+    displayLCD(field1);
+    setCursorSecondLine();
+    displayLCD(field2);
+
+    JSONValue* value;
+    char* format;
+    switch (data) {
+    case TEMP:
+        value = JSONGet(current, "temp_f");
+        format = "Temp: %8.3f F";
+        break;
+    case HUMIDITY:
+        value = JSONGet(current, "humidity");
+        format = "Humidity: %7.3f";
+        break;
+    case CONDITION:
+        value = JSONGet(current, "condition");
+        value = JSONGet(value, "text");
+        format = "%.16s";
+    }
+}
+
 void handleResponse(void) {
-    JSONValue* json = parseJSON(buffer);
-    if (!json) return; // TODO: Properly handle error
+    destroyJSON(json);
+    json = parseJSON(buffer);
+    if (!json) return;
 
     JSONValue* current = JSONGet(json, "current");
 
-    setCursorFirstLine();   // Set LCD cursor to start of first line
-    switchData(data1, current);
-
-    setCursorSecondLine();
-    switchData(data2, current);
-
-    destroyJSON(json);
+    updateLCD();
 
     responseReady = false;
 }
@@ -217,9 +236,10 @@ int main(void) {
         }
 
         // Handle button press
-        if (!(P1->IN & 0x0010)) {
+        if (!(P1->IN & BIT4)) {
             // create function in lcd.c to cycle info on LCD screen
             cycleLCD();
+            updateLCD();
             // lazy debounce for now
             for (delay = 0; delay < 5000; delay++);
             // wait for S2 released

@@ -69,6 +69,7 @@ inline void destroyJSONVoid(void* value) {
 
 inline void destroyJSON(JSONValue* value) {
     if (!value) return;
+
     switch (value->type) {
     case OBJECT:
         destroyMap(value->value.object, destroyJSONVoid);

@@ -22,7 +22,6 @@
 
 #define LONG_INSTR_DELAY    2000
 #define SHORT_INSTR_DELAY   50
-#define NUM_FIELDS          3
 
 /*
  * For now, simple implementation of keeping track of fields to display is by numbering them 0-n, where is is (how many fields we have - 1)
@@ -32,12 +31,8 @@
  * Condition = 2
  */
 
-int data1 = 0;  // Top line data, starting with temp
-int data2 = 1;  // Bottom line data, starting with humidity
-const char temp[] = "temp_f";
-const char humid[] = "humidity";
-const char cond[] = "condition";
-const char text[] = "text";
+int field1 = TEMP;  // Top line data, starting with temp
+int field2 = HUMIDITY;  // Bottom line data, starting with humidity
 
 void configLCD(uint32_t clkFreq) {
     // configure pins as GPIO
@@ -178,6 +173,6 @@ void setCursorSecondLine() {
 
 void cycleLCD() {
     // Cycle data displayed on LCD
-    data1 = ++data1 % NUM_FIELDS;
-    data2 = ++data2 % NUM_FIELDS;
+    field1 = ++field1 % NUM_FIELDS;
+    field2 = ++field2 % NUM_FIELDS;
 }

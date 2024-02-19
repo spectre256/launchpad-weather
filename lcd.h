@@ -29,6 +29,13 @@ extern "C"
 
 #include <msp.h>
 
+typedef enum {
+    TEMP,
+    HUMIDITY,
+    CONDITION,
+    NUM_FIELDS,
+} LCDField;
+
 #define LCD_DB_PORT         P4
 #define LCD_RS_PORT         P5
 #define LCD_EN_PORT         P5
