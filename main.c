@@ -23,7 +23,7 @@ volatile char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
 volatile bool responseReady = false;
-char numBuffer[7]; // XXX.XX
+char charBuffer[17];
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -45,6 +45,23 @@ void printMessage(const char* const message) {
 void sendRequest(void) {
     if (!responseReady) {
         printMessage(httpRequest);
+    }
+}
+
+void displayLCD(char* format, JSONValue* value){
+    int i;
+    switch(value->type){
+    case NUMBER:
+        snprintf(charBuffer, sizeof(charBuffer), format, value->value.number);
+        break;
+    case STRING:
+        snprintf(charBuffer, sizeof(charBuffer), format, value->value.str->str);
+        break;
+    default:
+        return;
+    }
+    for(i = 0; i < (sizeof(charBuffer)/sizeof(char)) - 1; i++){
+        printChar(charBuffer[i]);    // print format string plus value
     }
 }
 
