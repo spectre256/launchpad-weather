@@ -29,12 +29,24 @@ extern "C"
 
 #include <msp.h>
 
+/*
+ * For now, simple implementation of keeping track of fields to display is by numbering them 0-n, where is is (how many fields we have - 1)
+ *
+ * Temp = 0
+ * Humidity = 1
+ * Condition = 2
+ */
+
 typedef enum {
     TEMP,
     HUMIDITY,
     CONDITION,
+    WIND,
     NUM_FIELDS,
 } LCDField;
+
+extern LCDField field1;  // Top line data, starting with temp
+extern LCDField field2;  // Bottom line data, starting with humidity
 
 #define LCD_DB_PORT         P4
 #define LCD_RS_PORT         P5

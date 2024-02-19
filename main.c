@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 // #define TEST
-#define BUFFER_SIZE 280
+#define BUFFER_SIZE 320
 #define CLK_FREQUENCY 48000000 // MCLK using 48MHz HFXT
 #define TIMER_TICKS 1250 // 5 s * (32kHz / 128)
 
@@ -23,7 +23,6 @@ volatile char* buffer;
 volatile int buffer_i = 0;
 volatile int nl_cnt = 0;
 volatile bool responseReady = false;
-char charBuffer[17];
 
 /*
  * This function prints a (NUL-terminated) message over UART. Assumes configuration
@@ -48,66 +47,51 @@ void sendRequest(void) {
     }
 }
 
-void displayLCD(char* format, JSONValue* value){
-    int i;
+void displayLCD(LCDField field){
+    JSONValue* value;
+    JSONValue* wind_dir;
+    char* format;
+    char charBuffer[] = "                ";
+
+    switch (field) {
+    case TEMP:
+        value = JSONGet(current, "temp_f");
+        format = "Temp: %8.3f F";
+        break;
+    case HUMIDITY:
+        value = JSONGet(current, "humidity");
+        format = "Humidity: %5.2f%%";
+        break;
+    case CONDITION:
+        value = JSONGet(current, "condition");
+        value = JSONGet(value, "text");
+        format = "%-16.*s";
+        break;
+    case WIND:
+        value = JSONGet(current, "wind_mph");
+        wind_dir = JSONGet(current, "wind_dir");
+        format = "Wind: %3.1f mph %-2.*s";
+    }
+
     switch(value->type){
     case NUMBER:
-        snprintf(charBuffer, sizeof(charBuffer), format, value->value.number);
+        if (field == WIND) {
+            snprintf(charBuffer, sizeof(charBuffer), format, value->value.number, wind_dir->value.str->length, wind_dir->value.str->str);
+        } else {
+            snprintf(charBuffer, sizeof(charBuffer), format, value->value.number);
+        }
         break;
     case STRING:
-        snprintf(charBuffer, sizeof(charBuffer), format, value->value.str->str);
+        snprintf(charBuffer, sizeof(charBuffer), format, value->value.str->length, value->value.str->str);
         break;
     default:
         return;
     }
+
+    int i;
     for(i = 0; i < (sizeof(charBuffer)/sizeof(char)) - 1; i++){
         printChar(charBuffer[i]);    // print format string plus value
     }
-}
-
-void switchData(int data, JSONValue* current){
-    int i;
-    switch(data){
-    case 0:{
-        JSONValue* temp_f = JSONGet(current, "temp_f");
-        //Display temp
-        for(i = 0; i < sizeof(tempText)/sizeof(char) - 1; i++){
-            printChar(tempText[i]); // Print "Temp(F): "
-        }
-        //Convert value in temp_f to char array
-        snprintf(numBuffer, sizeof(numBuffer), "%6.3f", temp_f->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // print value of temp_f
-        }
-
-        break;
-    }
-    case 1:{
-        JSONValue* humidity = JSONGet(current, "humidity");
-        //Display humidity
-        for(i = 0; i < sizeof(humidText)/sizeof(char) - 1; i++){
-            printChar(humidText[i]);    // Print "Humidity: "
-        }
-        // Ditto above
-        snprintf(numBuffer, sizeof(numBuffer), "%6.3f", humidity->value.number);
-        for(i = 0; i < (sizeof(numBuffer)/sizeof(char)) - 1; i++){
-            printChar(numBuffer[i]);    // Print value of humidity
-        }
-
-        break;
-    }
-    case 2:{
-        JSONValue* condition = JSONGet(current, "condition");
-        JSONValue* conditionText = JSONGet(condition, "text");
-        for(i = 0; i < sizeof(condText)/sizeof(char) - 1; i++){
-            printChar(condText[i]);    // Print "Humidity: "
-        }
-        for(i = 0; i < conditionText->value.str->length; i++){
-            printChar(*(conditionText->value.str->str + i));
-        }
-    }
-    }
-
 }
 
 inline void updateLCD(void) {
@@ -115,23 +99,6 @@ inline void updateLCD(void) {
     displayLCD(field1);
     setCursorSecondLine();
     displayLCD(field2);
-
-    JSONValue* value;
-    char* format;
-    switch (data) {
-    case TEMP:
-        value = JSONGet(current, "temp_f");
-        format = "Temp: %8.3f F";
-        break;
-    case HUMIDITY:
-        value = JSONGet(current, "humidity");
-        format = "Humidity: %7.3f";
-        break;
-    case CONDITION:
-        value = JSONGet(current, "condition");
-        value = JSONGet(value, "text");
-        format = "%.16s";
-    }
 }
 
 void handleResponse(void) {
@@ -139,7 +106,7 @@ void handleResponse(void) {
     json = parseJSON(buffer);
     if (!json) return;
 
-    JSONValue* current = JSONGet(json, "current");
+    current = JSONGet(json, "current");
 
     updateLCD();
 

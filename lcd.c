@@ -23,16 +23,8 @@
 #define LONG_INSTR_DELAY    2000
 #define SHORT_INSTR_DELAY   50
 
-/*
- * For now, simple implementation of keeping track of fields to display is by numbering them 0-n, where is is (how many fields we have - 1)
- *
- * Temp = 0
- * Humidity = 1
- * Condition = 2
- */
-
-int field1 = TEMP;  // Top line data, starting with temp
-int field2 = HUMIDITY;  // Bottom line data, starting with humidity
+LCDField field1 = TEMP;
+LCDField field2 = HUMIDITY;
 
 void configLCD(uint32_t clkFreq) {
     // configure pins as GPIO
